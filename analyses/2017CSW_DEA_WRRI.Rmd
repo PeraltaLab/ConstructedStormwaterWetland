@@ -1,0 +1,68 @@
+---
+title: "Examining environmental drivers on greenhouse denitrification potential in a constructed stormwater wetland (aka 2017 CSW)"
+author: "Sam Austin, Gina Bledsoe, Ariane Peralta"
+date: "Last updated on `r format(Sys.time(), '%d %B, %Y')`"
+output:
+  pdf_document: null
+  fig_caption: yes
+  html_document: default
+editor_options:
+  chunk_output_type: console
+---
+Project Description: Analysis of seasonal denitrification potential in a constructed stormwater wetland (Greenville, NC, USA).
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE)
+```
+
+```{r setup workspace}
+if(Sys.info()[1] == "Darwin"){
+  setwd("~/GitHub/ConstructedStormwaterWetland/analyses/")
+} else {
+  # setwd(choose.dir())
+}
+rm(list = ls())
+
+library(ggplot2)
+library(psych)
+```
+
+```{r read in data}
+#CSW DEA data
+DEA <- read.csv("../data/CSW_DEA_Env.csv", header=T)
+```
+
+```{r DEA with acetylene, echo=T, out.width="100%"}
+#linear model for no acetylene/ yes acetylene DEA ratio
+DEA.lm <- lm(y.ng.N2ON.hr~hydrology*season,data=DEA)
+plot(DEA.lm)
+anova(DEA.lm)
+
+p <- ggplot(DEA, aes(x=season, y=y.ng.N2ON.hr, color=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=0.75, position=position_dodge(width=0.3)) + scale_color_manual(name="Hydrology", values=c("darkgreen","cyan"), labels = c("terrestrial", "inundated")) + scale_x_discrete(labels=c("1spring" = "spring", "2summer" = "summer", "3fall" = "fall", "4winter" = "winter"))
+p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=14), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Season", y = (expression(paste("Denitrification Potential (ng N"[2],"O g"^-{1}," DM hr"^-{1},")")))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
+
+ggsave("../figures/DEApotential.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+```
+
+```{r DEA ratio, echo=T, out.width="100%"}
+#linear model for no acetylene/ yes acetylene DEA ratio
+ratio.lm <- lm(rN2O_N2O.N2~hydrology*season,data=DEA)
+plot(ratio.lm)
+anova(ratio.lm)
+
+p <- ggplot(DEA, aes(x=season, y=rN2O_N2O.N2, color=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=0.75, position=position_dodge(width=0.3)) + scale_color_manual(name="Hydrology", values=c("darkgreen","cyan"), labels = c("terrestrial", "inundated")) + scale_x_discrete(labels=c("1spring" = "spring", "2summer" = "summer", "3fall" = "fall", "4winter" = "winter"))
+p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=14), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Season", y = "rN2O/r(N2O+N2)") + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
+
+ggsave("../figures/DEAratio.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+```
+
+```{r DEA with acetylene by sample plot, echo=T, out.width="100%"}
+#linear model for no acetylene/ yes acetylene DEA ratio
+DEA.lm <- lm(y.ng.N2ON.hr~hydrology*season,data=DEA)
+plot(DEA.lm)
+anova(DEA.lm)
+
+p <- ggplot(DEA, aes(x=sample, y=y.ng.N2ON.hr, color=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=0.75, position=position_dodge(width=0.3)) + scale_color_manual(name="Hydrology", values=c("darkgreen","cyan"), labels = c("terrestrial", "inundated")) +facet_wrap(~season) 
+p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=8), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Sample Location", y = (expression(paste("Denitrification Potential (ng N"[2],"O g"^-{1}," DM hr"^-{1},")")))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
+
+ggsave("../figures/DEApotential_location.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+```
