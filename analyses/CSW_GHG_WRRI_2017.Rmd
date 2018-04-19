@@ -426,46 +426,61 @@ ggsave("../figures/SoilNO3.jpeg", plot=last_plot(), device=NULL, path=NULL, scal
 ```
 
 ```{r CO2 equivalents}
-#I need to know what percent of the total each occupy
-#co2mgm2hr, ch4co2eq, n2oco2eq
-#ghg <- mutate(ghg, 
-             # co2eqtot = )
-library(reshape)
-
-ghg.co2eq <- ghg %>%
-  select(date, season, hydrology, ch4co2eq, n2oco2eq, co2cmgm2day) %>%
-  mutate(ctot=ch4co2eq+n2oco2eq+co2cmgm2day, pch4 = ch4co2eq/ctot, pn2o= n2oco2eq/ctot, pco2=co2cmgm2day/ctot)
-
- 
- ghg.melt <- melt(ghg, id.vars=c( "season","hydrology"), measure.vars = c("ch4co2eq","n2oco2eq","co2mgm2hr"))
-
- ghg.r <- reshape(ghg, idvar=c( "season","hydrology"), timevar = c("ch4co2eq","n2oco2eq","co2mgm2hr"), direction="wide")
- 
- `gather(data,key,value,...sources,factor key)`
-  # - data: Data object
-  # - key: Name of new key column (made from names of data columns)
-  # - value: Name of new value column
-  # - ...: Names of source columns that contain values
-  # - factor_key: Treat the new key column as a factor (instead of character vector)
+#This is the annual amount of C stored or released from PI or SL plots yearly
+#First get average of all plots by hyrdology and season in mg C m2 hr
+ghg.co2.equiv <- ghg %>% 
+  group_by(hydrology, season) %>%
+  summarise(mch4mgm2hr=mean(ch4mgm2hr),mco2mgm2hr=mean(co2mgm2hr),mn2omgm2hr=mean(n2omgm2hr)) %>%
+  #Then multiple mg C m2 hr * 24 * 365 = mg C m2 yr
+  mutate(ch4mgcm2yr = mch4mgm2hr * 8760/1000/1000, co2mgcm2yr = mco2mgm2hr*8760/1000/1000, n2omgnm2yr=mn2omgm2hr*8760/1000/1000) %>%
+  mutate(ch4mgcyr=0, co2mgcyr=0, n2omgnyr=0)%>%
+ #Then multiple each gas (ch4mgcyrco2, n2omgnyrco2, co2mgcyr) 
+  #by percent PI (65%) and percent SL (35%) of 5600sq ft converted to m2 (520...)
+  mutate(ch4mgcyr=ifelse(hydrology=="PI", ch4mgcm2yr*338.167, ch4mgcm2yr * 182.09)) %>% mutate(co2mgcyr=ifelse(hydrology=="PI", co2mgcm2yr*338.167, co2mgcm2yr * 182.09)) %>% mutate(n2omgnyr=ifelse(hydrology=="PI", n2omgnm2yr*338.167, n2omgnm2yr * 182.09))%>%
+  #Take that amount of mg C yr and multiple by CO2 Equivalents
+  mutate(ch4mgcyrco2 = ch4mgcyr*25, n2omgnyrco2=n2omgnyr *298)
   
+g <- ghg.co2.equiv %>%
+   group_by(hydrology) %>%
+  summarise(sum(ch4mgcyrco2), sum(co2mgcyr), sum(n2omgnyrco2))
+ 
+
 require(tidyr)
-wide_to_long <- gather(ghg, co2eq, measurement, co2mgm2hr,ch4co2eq, n2oco2eq, factor_key=TRUE)
+wide_to_long <- gather(ghg.co2.equiv, co2eq, measurement, ch4mgcyrco2, co2mgcyr, n2omgnyrco2, factor_key=TRUE)
 wide_to_long
 
-labels <- c("PI"="Permanently Inundated (PI)","SL"="Shallow Land (SL)")
- 
-p <-ggplot(wide_to_long, aes(x=season, y=measurement, fill=co2eq)) + geom_bar(stat="identity") + facet_wrap(~hydrology) + scale_x_discrete(labels=c("sp" = "spring", "sm" = "summer", "f" = "fall", "w" = "winter"), limits=c("sp", "sm", "f", "w")) + labs(x = "Season", y = (expression(paste("CO"[2], "eq (mg C m"^-{2}, " hr"^-{1},")")))) 
+totc <- summarise(wide_to_long, s = sum(measurement))
+totc$s
+#PI 98.86%
+#8958
+#SL 1.14%
+#104
+#Total C in = 9071 kg C year
 
-p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16), axis.text=element_text(size=12), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=10), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + theme(strip.text.x = element_text(size=16), strip.text.y = element_text(size=16), strip.background = element_rect(colour="black", fill="white", size=1))
+
+levels(wide_to_long$hydrology) 
+levels(wide_to_long$hydrology) <- c("PI","SL")
+
+p <-ggplot(wide_to_long, aes(x=season, y=measurement, fill=co2eq)) + geom_bar(stat="identity") + facet_wrap(~hydrology) + scale_x_discrete(labels=c("sp" = "spring", "sm" = "summer", "f" = "fall", "w" = "winter"), limits=c("sp", "sm", "f", "w")) + labs(x = "Season", y = (expression(paste("Total Annual Carbon (kg)")))) 
+
+p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16), axis.text=element_text(size=14), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=14), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + theme(strip.text.x = element_text(size=16), strip.text.y = element_text(size=16), strip.background = element_rect(colour="black", fill="white", size=1)) + scale_fill_manual(values=c("navy","darkgreen", "orange"))
 
 ggsave("../figures/CO2equiv.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
 
 ggsave("../figures/CO2equiv.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=8, height=4, dpi=300, limitsize=TRUE)
 
-is.numeric(ghg.melt$varibale)
+ghg.co2.equiv.sl <- wide_to_long %>%
+  filter(hydrology == "SL")
 
+p <-ggplot(ghg.co2.equiv.sl, aes(x=season, y=measurement, fill=co2eq)) + geom_bar(stat="identity") + facet_wrap(~hydrology) + scale_x_discrete(labels=c("sp" = "spring", "sm" = "summer", "f" = "fall", "w" = "winter"), limits=c("sp", "sm", "f", "w")) + labs(x = "Season", y = (expression(paste("Total Annual Carbon (kg)")))) 
 
+p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=14), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + theme(strip.text.x = element_text(size=16), strip.text.y = element_text(size=16), strip.background = element_rect(colour="black", fill="white", size=1)) + scale_fill_manual(values=c("navy","darkgreen", "orange"))
+
+ggsave("../figures/CO2equiv_JustSL.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+
+ggsave("../figures/CO2equiv_JustSL.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=8, height=4, dpi=300, limitsize=TRUE)
 ```
+
 #DENITRIFICATION ENZYME ASSAY
 ```{r read in data}
 #CSW DEA data
