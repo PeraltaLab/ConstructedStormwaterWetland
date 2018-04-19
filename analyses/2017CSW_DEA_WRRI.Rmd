@@ -1,5 +1,5 @@
 ---
-title: "Examining environmental drivers on greenhouse denitrification potential in a constructed stormwater wetland (aka 2017 CSW)"
+title: "Examining environmental drivers on denitrification potential in a constructed stormwater wetland (aka 2017 CSW)"
 author: "Sam Austin, Gina Bledsoe, Ariane Peralta"
 date: "Last updated on `r format(Sys.time(), '%d %B, %Y')`"
 output:
@@ -18,7 +18,7 @@ knitr::opts_chunk$set(echo = TRUE, warning=FALSE)
 if(Sys.info()[1] == "Darwin"){
   setwd("~/GitHub/ConstructedStormwaterWetland/analyses/")
 } else {
-  # setwd(choose.dir())
+  setwd(choose.dir())
 }
 rm(list = ls())
 

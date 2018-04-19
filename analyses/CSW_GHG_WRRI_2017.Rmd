@@ -1,0 +1,513 @@
+---
+title: "Examining environmental drivers on greenhouse gas production and denitrification potential in a constructed stormwater wetland (aka 2017 CSW)"
+author: "Gina Bledsoe, Ariane Peralta"
+date: "Last updated on `r format(Sys.time(), '%d %B, %Y')`"
+output:
+  pdf_document: null
+  fig_caption: yes
+  html_document: default
+editor_options:
+  chunk_output_type: console
+---
+Project Description: Analysis of seasonal denitrification potential in a constructed stormwater wetland (Greenville, NC, USA).
+
+```{r setup workspace}
+if(Sys.info()[1] == "Darwin"){
+  setwd("~/GitHub/ConstructedStormwaterWetland/analyses/")
+} else {
+  setwd(choose.dir())
+}
+rm(list = ls())
+
+library(ggplot2)
+library(psych)
+library(dplyr)
+library(tidyverse)
+```
+
+```{r setup, include=FALSE}
+#use to set gloabl options for chunks e.g., echo and warning options will be applied to all chuncks
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE)
+#use to set working directory 
+knitr::opts_knit$set(root.dir="C:/Users/annorion/Documents/Documents/_Projects/2017_CSW/data/environmental/analysis/")
+list.files()
+```
+
+```{r read in data}
+
+#ghg flux data. measured values
+#getwd()
+ghg <- read.csv("../data/CSW_Flux_5Feb2018.csv", header=T)
+#design data. categorical values ans soil measurements
+design <-read.csv("../data/CSW_field_design_soil.csv", header=T)
+#water data
+water <- read.csv("../data/CSW_Water_nutes.csv")
+
+#ghg flux is calcualted from 4 timepoints. first we need to remove lines without flux calcuations. 
+ghg <- filter(ghg, !is.na(ghg$ch4cmgm2day))
+#now can combine design and ghg datasets
+ghg <- cbind(ghg, design)
+
+#Add calculated fields 
+ghg <- mutate(ghg, 
+      co2.ch4=ghg$co2mgm2hr/ghg$ch4mgm2hr, #co2:ch4 ratio   
+      co2.n2o=ghg$co2mgm2hr/ghg$n2omgm2hr, #co2:n2o ratio
+      ch4co2eq=ghg$ch4mgm2hr*25, #methane carbon dioxide equivalents
+      n2oco2eq=ghg$n2omgm2hr*298 #nitrous oxide carbon dixode equivalents
+      )
+```
+
+```{r CH4 by season, echo=T, out.width="100%"}
+#linear model for methane
+ghg.lm <- lm(ch4mgm2hr~hydrology*season,data=ghg)
+plot(ghg.lm)
+anova(ghg.lm)
+ghg.lm <- (aov(ghg.lm))
+ghg.lm
+
+library (agricolae)
+posthoc <- HSD.test(ghg.lm, "season", group=T)
+posthoc$groups
+
+anova2<-(aov(ch4mgm2hr~as.factor(season)*as.factor(hydrology),data=ghg))
+#car::Anova(anova2, type="III")
+posthoc <- TukeyHSD(anova2, group=T)
+posthoc
+
+p <- ggplot(ghg, aes(x=season, y=ch4mgm2hr, color=as.factor(hydrology), shape=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=1.25, position=position_dodge(width=0.5)) + scale_color_manual(name="Hydrology", values=c("navy","darkgreen"), labels = c("PI", "SL")) + scale_shape_manual(name="Hydrology", values=c(17,16), labels = c("PI", "SL")) + scale_x_discrete(labels=c("sp" = "spring", "sm" = "summer", "f" = "fall", "w" = "winter"), limits=c("sp", "sm", "f", "w"))
+
+p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=20,face="bold"), axis.text=element_text(size=20), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=20), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Season", y = (expression(paste("CH"[4], " (mg C"," m"^-{2}," hr"^-{1},")")))) + theme(strip.text.x = element_text(size=20, face="bold"), strip.text.y = element_text(size=20, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
+
+ggsave("../figures/CH4bySeason.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+
+ggsave("../figures/CH4bySeason.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6, height=4, dpi=300, limitsize=TRUE)
+```
+
+```{r CO2 by season, echo=T, out.width="100%"}
+#linear model for carbon dioxide
+ghg.lm <- lm(co2mgm2hr~hydrology*season,data=ghg)
+plot(ghg.lm)
+anova(ghg.lm)
+
+anova2<-(aov(co2mgm2hr~as.factor(season)*as.factor(hydrology),data=ghg))
+posthoc <- TukeyHSD(anova2, group=T)
+posthoc
+
+p <- ggplot(ghg, aes(x=season, y=co2mgm2hr, color=as.factor(hydrology), shape=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=1.25, position=position_dodge(width=0.5)) + scale_color_manual(name="Hydrology", values=c("navy","darkgreen"), labels = c("PI", "SL")) + scale_shape_manual(name="Hydrology", values=c(17,16), labels = c("PI", "SL")) + scale_x_discrete(labels=c("sp" = "spring", "sm" = "summer", "f" = "fall", "w" = "winter"), limits=c("sp", "sm", "f", "w"))
+
+p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=20,face="bold"), axis.text=element_text(size=20), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=20), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Season", y = (expression(paste("CO"[2], " (mg C"," m"^-{2}," hr"^-{1},")")))) + theme(strip.text.x = element_text(size=20, face="bold"), strip.text.y = element_text(size=20, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
+
+ggsave("../figures/CO2bySeason.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+
+ggsave("../figures/CO2bySeason.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6, height=4, dpi=300, limitsize=TRUE)
+```
+
+```{r N2O by season, echo=T, out.width="100%"}
+#linear model for nitrous oxide
+ghg.lm <- lm(n2omgm2hr~hydrology*season,data=ghg)
+plot(ghg.lm)
+anova(ghg.lm)
+
+anova2<-(aov(n2omgm2hr~as.factor(season)*as.factor(hydrology),data=ghg))
+posthoc <- TukeyHSD(anova2, group=T)
+posthoc
+
+p <- ggplot(ghg, aes(x=season, y=n2omgm2hr, color=as.factor(hydrology), shape=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=1.25, position=position_dodge(width=0.5)) + scale_color_manual(name="Hydrology", values=c("navy","darkgreen"), labels = c("PI", "SL")) + scale_shape_manual(name="Hydrology", values=c(17,16), labels = c("PI", "SL")) + scale_x_discrete(labels=c("sp" = "spring", "sm" = "summer", "f" = "fall", "w" = "winter"), limits=c("sp", "sm", "f", "w"))
+
+p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=20,face="bold"), axis.text=element_text(size=20), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=20), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Season", y = (expression(paste("N"[2],"O (mg N m"^-{2}, " hr"^-{1},")")))) + theme(strip.text.x = element_text(size=20, face="bold"), strip.text.y = element_text(size=20, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
+
+ggsave("../figures/N2ObySeason.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+
+ggsave("../figures/N2ObySeason.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6, height=4, dpi=300, limitsize=TRUE)
+```
+
+```{r Ch4 by sample plot, echo=T, out.width="100%"}
+#linear model for methane by plot
+ghg.lm <- lm(ch4mgm2hr~hydrology*season,data=ghg)
+plot(ghg.lm)
+anova(ghg.lm)
+
+ghg$facet=factor(ghg$season, levels=c("sp","sm","f","w"))
+
+p <- ggplot(ghg, aes(x=sample, y=ch4mgm2hr, color=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=0.75, position=position_dodge(width=0.3)) + scale_color_manual(name="Hydrology", values=c("navy","darkgreen"), labels = c("PI", "SL")) + scale_shape_manual(name="Hydrology", values=c(17,16), labels = c("PI", "SL")) +facet_wrap(~season)
+p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=8), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Sample Location", y = (expression(paste("CH"[4], " mg C m"^-{2}, " hr"^-{1},")")))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
+
+ggsave("../figures/CH4byPlot.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+```
+
+```{r CO2 by sample plot, echo=T, out.width="100%"}
+#linear model for carbon dioxide by plot
+ghg.lm <- lm(co2mgm2hr~hydrology*season,data=ghg)
+plot(ghg.lm)
+anova(ghg.lm)
+
+p <- ggplot(ghg, aes(x=sample, y=co2mgm2hr, color=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=0.75, position=position_dodge(width=0.3)) + scale_color_manual(name="Hydrology", values=c("navy","darkgreen"), labels = c("PI", "SL")) + scale_shape_manual(name="Hydrology", values=c(17,16), labels = c("PI", "SL")) +facet_wrap(~season) 
+p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=8), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Sample Location", y = (expression(paste("CO"[2], " (mg C m"^-{2}," hr"^-{1},")")))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
+
+ggsave("../figures/CO2byPlot.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+```
+
+```{r N2O by sample plot, echo=T, out.width="100%"}
+#linear model for nitrous oxide by plot
+ghg.lm <- lm(n2omgm2hr~hydrology*season,data=ghg)
+plot(ghg.lm)
+anova(ghg.lm)
+
+p <- ggplot(ghg, aes(x=sample, y=n2omgm2hr, color=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=0.75, position=position_dodge(width=0.3)) + scale_color_manual(name="Hydrology", values=c("navy","darkgreen"), labels = c("PI", "SL")) + scale_shape_manual(name="Hydrology", values=c(17,16), labels = c("PI", "SL")) +facet_wrap(~season)
+p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=8), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Sample Location", y = (expression(paste("N"[2],"O (mg N m"^-{2}," hr"^-{1},")")))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
+
+ggsave("../figures/N2ObyPlot.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+```
+
+```{r water quality, echo=T, out.width="100%"}
+#water data
+water <-read.csv("../data/CSW_Water_Nutes.csv")
+water<-water %>% filter(plot!="5-South Inlet", Station != "CSW_007", Station!="CSW_012") %>%
+mutate(NO3.NO2.1 = ifelse(NO3.NO2.1 < 0 , 0, NO3.NO2.1))
+```
+
+```{r water NH4.1 = NH4 mg/l}
+water.lm <- lm(NH4.1~plot+season,data=water)
+plot(water.lm)
+anova(water.lm)
+summary(water.lm)
+
+posthoc <- HSD.test(water.lm, "plot", group=T)
+posthoc$groups
+
+anova2<-(aov(NH4.1~as.factor(plot)+as.factor(season),data=water))
+posthoc <- TukeyHSD(anova2, group=T)
+posthoc
+
+p1 <- ggplot(water, aes(x=plot, y=NH4.1, color=as.factor(season), shape=as.factor(season))) + stat_summary(fun.data=mean_cl_boot,size=1.25, position=position_dodge(width=0.5)) + scale_color_manual(name="Season", values=c("darkgreen","red", "orange", "navy"), labels = c("spring", "summer","fall","winter")) + scale_shape_manual(name="Season", values=c(15,16,17,18), labels = c("spring", "summer","fall","winter"))
+
+p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=20,face="bold"), axis.text=element_text(size=20), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Sample Location", y = (expression(paste("NH"[4], " mg L"^-{1})))) + theme(strip.text.x = element_text(size=20, face="bold"), strip.text.y = element_text(size=20, face="bold"), strip.background = element_rect(colour="black", fill="white", size=3))
+
+ggsave("../figures/nh4.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6, height=4, dpi=300, limitsize=TRUE)
+```
+
+```{r water:NO3+NO2. = NO3 + NO2 mg/L}
+water.lm <- lm(NO3.NO2.1~plot+ season,data=water)
+plot(water.lm)
+anova(water.lm)
+summary(water.lm)
+
+posthoc <- HSD.test(water.lm, "season", group=T)
+posthoc$groups
+
+anova2<-(aov(NH4.1~as.factor(plot)+as.factor(season),data=water))
+#car::Anova(anova2, type="III")
+posthoc <- TukeyHSD(anova2, group=T)
+posthoc
+
+p2 <- ggplot(water, aes(x=plot, y=NO3.NO2.1, color=as.factor(season), shape=as.factor(season))) + stat_summary(fun.data=mean_cl_boot,size=1.25, position=position_dodge(width=0.5)) + scale_color_manual(name="Season", values=c("darkgreen","red", "orange", "navy"), labels = c("spring", "summer","fall","winter")) + scale_shape_manual(name="Season", values=c(15,16,17,18), labels = c("spring", "summer","fall","winter"))
+
+p2 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=20,face="bold"), axis.text=element_text(size=20), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Sample Location", y = (expression(paste("NO"[3],"+NO"[2], " mg L"^-{1})))) + theme(strip.text.x = element_text(size=20, face="bold"), strip.text.y = element_text(size=20, face="bold"), strip.background = element_rect(colour="black", fill="white", size=3))
+
+ggsave("../figures/no3.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6, height=4, dpi=300, limitsize=TRUE)
+```
+
+```{r water: PO4.1 = phosphate mg/L}
+water.lm <- lm(PO4.1~plot+season,data=water)
+plot(water.lm)
+anova(water.lm)
+summary(water.lm)
+
+posthoc <- HSD.test(water.lm, "season", group=T)
+posthoc$groups
+
+anova2<-(aov(PO4.1~as.factor(plot)+as.factor(season),data=water))
+posthoc <- TukeyHSD(anova2, group=T)
+posthoc
+
+p6 <- ggplot(water, aes(x=plot, y=PO4.1, color=as.factor(season), shape=as.factor(season))) + stat_summary(fun.data=mean_cl_boot,size=1.25, position=position_dodge(width=0.5)) + scale_color_manual(name="Season", values=c("darkgreen","red", "orange", "navy"), labels = c("spring", "summer","fall","winter")) + scale_shape_manual(name="Season", values=c(15,16,17,18), labels = c("spring", "summer","fall","winter"))
+
+p6 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=20,face="bold"), axis.text=element_text(size=20), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Sample Location", y = (expression(paste("PO"[4], " mg L"^-{1})))) + theme(strip.text.x = element_text(size=20, face="bold"), strip.text.y = element_text(size=20, face="bold"), strip.background = element_rect(colour="black", fill="white", size=3))
+
+ggsave("../figures/po4.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6, height=4, dpi=300, limitsize=TRUE)
+```
+
+```{r water: CL.1 = Chloride mg/L}
+water.lm <- lm(CL.1~plot+season,data=water)
+plot(water.lm)
+anova(water.lm)
+summary(water.lm)
+
+p8 <- ggplot(water, aes(x=plot, y=CL.1, color=as.factor(season), shape=as.factor(season))) + stat_summary(fun.data=mean_cl_boot,size=1.25, position=position_dodge(width=0.5)) + scale_color_manual(name="Season", values=c("darkgreen","red", "orange", "navy"), labels = c("spring", "summer","fall","winter")) + scale_shape_manual(name="Season", values=c(15,16,17,18), labels = c("spring", "summer","fall","winter"))
+
+p8 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=20,face="bold"), axis.text=element_text(size=20), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Sample Location", y = (expression(paste("Cl mg L"^-{1})))) + theme(strip.text.x = element_text(size=20, face="bold"), strip.text.y = element_text(size=20, face="bold"), strip.background = element_rect(colour="black", fill="white", size=3))
+
+ggsave("../figures/cl.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6, height=4, dpi=300, limitsize=TRUE)
+
+library(grid)
+grid.newpage()
+grid.draw(rbind(ggplotGrob(p1), ggplotGrob(p2), ggplotGrob(p6), ggplotGrob(p8),  size = "last"))
+```
+
+```{r water: DKN, PN, PP, TDP}
+
+water.lm <- lm(DKN.1~season,data=water)
+plot(water.lm)
+anova(water.lm)
+
+water.lm <- lm(PN.1~season,data=water)
+plot(water.lm)
+anova(water.lm)
+
+water.lm <- lm(PP.1~season,data=water)
+plot(water.lm)
+anova(water.lm)
+
+water.lm <- lm(TDP.1~season,data=water)
+plot(water.lm)
+anova(water.lm)
+
+#Only have for a couple of months... don't think they were run but should verify
+#p3 <- ggplot(water, aes(x=plot, y=DKN.1, color=as.factor(season), shape=as.factor(season))) + stat_summary(fun.data=mean_cl_boot,size=1.25, position=position_dodge(width=0.5)) + scale_color_manual(name="Season", values=c("darkgreen","red", "orange", "navy"), labels = c("spring", "summer","fall","winter")) + scale_shape_manual(name="Season", values=c(15,16,17,18), labels = c("spring", "summer","fall","winter"))
+
+#p3 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=20,face="bold"), axis.text=element_text(size=20), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Sample Location", y = (expression(paste("Dissolved N"[4], " mg L"^-{1})))) + theme(strip.text.x = element_text(size=20, face="bold"), strip.text.y = element_text(size=20, face="bold"), strip.background = element_rect(colour="black", fill="white", size=3))
+
+#ggsave("../figures/DKN.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6, height=4, dpi=300, limitsize=TRUE)
+
+p4 <- ggplot(water, aes(x=plot, y=PN.1, color=as.factor(season), shape=as.factor(season))) + stat_summary(fun.data=mean_cl_boot,size=1.25, position=position_dodge(width=0.5)) + scale_color_manual(name="Season", values=c("darkgreen","red", "orange", "navy"), labels = c("spring", "summer","fall","winter")) + scale_shape_manual(name="Season", values=c(15,16,17,18), labels = c("spring", "summer","fall","winter"))
+
+p4 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=20,face="bold"), axis.text=element_text(size=20), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Sample Location", y = (expression(paste("PN mg L"^-{1})))) + theme(strip.text.x = element_text(size=20, face="bold"), strip.text.y = element_text(size=20, face="bold"), strip.background = element_rect(colour="black", fill="white", size=3))
+
+ggsave("../figures/pn.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6, height=4, dpi=300, limitsize=TRUE)
+
+
+p5 <- ggplot(water, aes(x=plot, y=PP.1, color=as.factor(season), shape=as.factor(season))) + stat_summary(fun.data=mean_cl_boot,size=1.25, position=position_dodge(width=0.5)) + scale_color_manual(name="Season", values=c("darkgreen","red", "orange", "navy"), labels = c("spring", "summer","fall","winter")) + scale_shape_manual(name="Season", values=c(15,16,17,18), labels = c("spring", "summer","fall","winter"))
+
+p5 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=20,face="bold"), axis.text=element_text(size=20), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Sample Location", y = (expression(paste("PP mg L"^-{1})))) + theme(strip.text.x = element_text(size=20, face="bold"), strip.text.y = element_text(size=20, face="bold"), strip.background = element_rect(colour="black", fill="white", size=3))
+
+ggsave("../figures/pp.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6, height=4, dpi=300, limitsize=TRUE)
+
+
+p7 <- ggplot(water, aes(x=plot, y=TDP.1, color=as.factor(season), shape=as.factor(season))) + stat_summary(fun.data=mean_cl_boot,size=1.25, position=position_dodge(width=0.5)) + scale_color_manual(name="Season", values=c("darkgreen","red", "orange", "navy"), labels = c("spring", "summer","fall","winter")) + scale_shape_manual(name="Season", values=c(15,16,17,18), labels = c("spring", "summer","fall","winter"))
+
+p7 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=20,face="bold"), axis.text=element_text(size=20), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Sample Location", y = (expression(paste("TDP mg L"^-{1})))) + theme(strip.text.x = element_text(size=20, face="bold"), strip.text.y = element_text(size=20, face="bold"), strip.background = element_rect(colour="black", fill="white", size=3))
+
+ggsave("../figures/tdp.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6, height=4, dpi=300, limitsize=TRUE)
+```
+
+```{r soil temp}
+s <- ggplot(ghg, aes(x = season , y =temp)) + 
+  geom_boxplot(aes(color=season), lwd=1)
+s + scale_color_manual(name="Season", values=c("darkgreen","red", "orange", "blue"), labels = c("spring", "summer","fall","winter"))  + scale_x_discrete(labels=c("sp" = "spring", "sm" = "summer", "f" = "fall", "w" = "winter"), limits=c("sp", "sm", "f", "w")) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=20,face="bold"), axis.text=element_text(size=20), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Season", y = (expression(paste('Soil Temperature (',~degree,'C)',sep='')))) + theme(strip.text.x = element_text(size=20, face="bold"), strip.text.y = element_text(size=20, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
+
+ggsave("../figures/SoilTemp.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+```
+
+```{r moist.percent = soil moisture}
+soil.lm <- lm(moist.percent~hydrology+season,data=design)
+plot(soil.lm)
+anova(soil.lm)
+summary(soil.lm)
+
+posthoc <- HSD.test(soil.lm, "hydrology", group=T)
+posthoc$groups
+
+anova2<-(aov(moist.percent~as.factor(hydrology),data=design))
+posthoc <- TukeyHSD(anova2, group=T)
+posthoc
+
+p1 <- ggplot(design, aes(x=hydrology, y=moist.percent, color=as.factor(season), shape=as.factor(season))) + stat_summary(fun.data=mean_cl_boot,size=1.25, position=position_dodge(width=0.5)) + scale_color_manual(name="Season", values=c("darkgreen","red", "orange", "navy"), labels = c("spring", "summer","fall","winter")) + scale_shape_manual(name="Season", values=c(15,16,17,18), labels = c("spring", "summer","fall","winter"))
+
+p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=20,face="bold"), axis.text=element_text(size=20), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Hydrology", y = (expression(paste("Soil Moisture (%)")))) + theme(strip.text.x = element_text(size=20, face="bold"), strip.text.y = element_text(size=20, face="bold"), strip.background = element_rect(colour="black", fill="white", size=3))
+
+ggsave("../figures/SoilMoisture.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+
+ggsave("../figures/SoilMoisture.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6, height=4, dpi=300, limitsize=TRUE)
+```
+
+```{r soil pH}
+soil.lm <- lm(ph~hydrology,data=design)
+plot(soil.lm)
+anova(soil.lm)
+summary(soil.lm)
+
+posthoc <- HSD.test(soil.lm, "hydrology", group=T)
+posthoc$groups
+
+anova2<-(aov(ph~as.factor(hydrology),data=design))
+posthoc <- TukeyHSD(anova2, group=T)
+posthoc
+
+p1 <- ggplot(design, aes(x=hydrology, y=ph, color=as.factor(season), shape=as.factor(season))) + stat_summary(fun.data=mean_cl_boot,size=1.25, position=position_dodge(width=0.5)) + scale_color_manual(name="Season", values=c("darkgreen","red", "orange", "navy"), labels = c("spring", "summer","fall","winter")) + scale_shape_manual(name="Season", values=c(15,16,17,18), labels = c("spring", "summer","fall","winter"))
+
+p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=20,face="bold"), axis.text=element_text(size=20), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Hydrology", y = (expression(paste("pH")))) + theme(strip.text.x = element_text(size=20, face="bold"), strip.text.y = element_text(size=20, face="bold"), strip.background = element_rect(colour="black", fill="white", size=3))
+
+ggsave("../figures/pH.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+```
+
+```{r soil om.percent}
+soil.lm <- lm(om.percent~hydrology+season,data=design)
+plot(soil.lm)
+anova(soil.lm)
+summary(soil.lm)
+
+posthoc <- HSD.test(soil.lm, "hydrology", group=T)
+posthoc$groups
+
+anova2<-(aov(om.percent~as.factor(hydrology),data=design))
+posthoc <- TukeyHSD(anova2, group=T)
+posthoc
+
+p1 <- ggplot(design, aes(x=hydrology, y=om.percent, color=as.factor(season), shape=as.factor(season))) + stat_summary(fun.data=mean_cl_boot,size=1.25, position=position_dodge(width=0.5)) + scale_color_manual(name="Season", values=c("darkgreen","red", "orange", "navy"), labels = c("spring", "summer","fall","winter")) + scale_shape_manual(name="Season", values=c(15,16,17,18), labels = c("spring", "summer","fall","winter"))
+
+p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=20,face="bold"), axis.text=element_text(size=20), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Hydrology", y = (expression(paste("Soil Organic Matter (%)")))) + theme(strip.text.x = element_text(size=20, face="bold"), strip.text.y = element_text(size=20, face="bold"), strip.background = element_rect(colour="black", fill="white", size=3))
+
+ggsave("../figures/SOM.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+```
+
+```{r soil cn}
+soil.lm <- lm(c.n~hydrology+season,data=design)
+plot(soil.lm)
+anova(soil.lm)
+summary(soil.lm)
+
+posthoc <- HSD.test(soil.lm, "hydrology", group=T)
+posthoc$groups
+
+anova2<-(aov(c.n~as.factor(hydrology),data=design))
+posthoc <- TukeyHSD(anova2, group=T)
+posthoc
+
+p1 <- ggplot(design, aes(x=hydrology, y=c.n, color=as.factor(season), shape=as.factor(season))) + stat_summary(fun.data=mean_cl_boot,size=1.25, position=position_dodge(width=0.5)) + scale_color_manual(name="Season", values=c("darkgreen","red", "orange", "navy"), labels = c("spring", "summer","fall","winter")) + scale_shape_manual(name="Season", values=c(15,16,17,18), labels = c("spring", "summer","fall","winter"))
+
+p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=20,face="bold"), axis.text=element_text(size=20), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Hydrology", y = (expression(paste("Soil C/N ratio (wt/wt)")))) + theme(strip.text.x = element_text(size=20, face="bold"), strip.text.y = element_text(size=20, face="bold"), strip.background = element_rect(colour="black", fill="white", size=3))
+
+ggsave("../figures/SoilCN.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+```
+
+```{r soil NH4}
+
+soil.lm <- lm(nh4.mgn.l.1~hydrology+season,data=design)
+plot(soil.lm)
+anova(soil.lm)
+summary(soil.lm)
+
+posthoc <- HSD.test(soil.lm, "hydrology", group=T)
+posthoc$groups
+
+anova2<-(aov(nh4.mgn.l.1~as.factor(hydrology),data=design))
+posthoc <- TukeyHSD(anova2, group=T)
+posthoc
+
+p1 <- ggplot(design, aes(x=hydrology, y=nh4.mgn.l.1, color=as.factor(season), shape=as.factor(season))) + stat_summary(fun.data=mean_cl_boot,size=1.25, position=position_dodge(width=0.5)) + scale_color_manual(name="Season", values=c("darkgreen","red", "orange", "navy"), labels = c("spring", "summer","fall","winter")) + scale_shape_manual(name="Season", values=c(15,16,17,18), labels = c("spring", "summer","fall","winter"))
+
+p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=20,face="bold"), axis.text=element_text(size=20), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Hydrology", y = (expression(paste("NH"[4], " mg L"^-{1})))) + theme(strip.text.x = element_text(size=20, face="bold"), strip.text.y = element_text(size=20, face="bold"), strip.background = element_rect(colour="black", fill="white", size=3))
+
+ggsave("../figures/SoilNH4.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+
+ggsave("../figures/SoilNH4.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6, height=4, dpi=300, limitsize=TRUE)
+```
+
+```{r soil NO3}
+soil.lm <- lm(no3.mgn.l.1~hydrology+season,data=design)
+plot(soil.lm)
+anova(soil.lm)
+summary(soil.lm)
+
+posthoc <- HSD.test(soil.lm, "hydrology", group=T)
+posthoc$groups
+
+anova2<-(aov(no3.mgn.l.1~as.factor(hydrology)+as.factor(season),data=design))
+posthoc <- TukeyHSD(anova2, group=T)
+posthoc
+
+p1 <- ggplot(design, aes(x=hydrology, y=no3.mgn.l.1, color=as.factor(season), shape=as.factor(season))) + stat_summary(fun.data=mean_cl_boot,size=1.25, position=position_dodge(width=0.5)) + scale_color_manual(name="Season", values=c("darkgreen","red", "orange", "navy"), labels = c("spring", "summer","fall","winter")) + scale_shape_manual(name="Season", values=c(15,16,17,18), labels = c("spring", "summer","fall","winter"))
+
+p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=20,face="bold"), axis.text=element_text(size=20), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Hydrology", y = (expression(paste("NO"[3],, " mg L"^-{1})))) + theme(strip.text.x = element_text(size=20, face="bold"), strip.text.y = element_text(size=20, face="bold"), strip.background = element_rect(colour="black", fill="white", size=3))
+
+ggsave("../figures/SoilNO3.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+
+ggsave("../figures/SoilNO3.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6, height=4, dpi=300, limitsize=TRUE)
+```
+
+```{r CO2 equivalents}
+#I need to know what percent of the total each occupy
+#co2mgm2hr, ch4co2eq, n2oco2eq
+#ghg <- mutate(ghg, 
+             # co2eqtot = )
+library(reshape)
+
+ghg.co2eq <- ghg %>%
+  select(date, season, hydrology, ch4co2eq, n2oco2eq, co2cmgm2day) %>%
+  mutate(ctot=ch4co2eq+n2oco2eq+co2cmgm2day, pch4 = ch4co2eq/ctot, pn2o= n2oco2eq/ctot, pco2=co2cmgm2day/ctot)
+
+ 
+ ghg.melt <- melt(ghg, id.vars=c( "season","hydrology"), measure.vars = c("ch4co2eq","n2oco2eq","co2mgm2hr"))
+
+ ghg.r <- reshape(ghg, idvar=c( "season","hydrology"), timevar = c("ch4co2eq","n2oco2eq","co2mgm2hr"), direction="wide")
+ 
+ `gather(data,key,value,...sources,factor key)`
+  # - data: Data object
+  # - key: Name of new key column (made from names of data columns)
+  # - value: Name of new value column
+  # - ...: Names of source columns that contain values
+  # - factor_key: Treat the new key column as a factor (instead of character vector)
+  
+require(tidyr)
+wide_to_long <- gather(ghg, co2eq, measurement, co2mgm2hr,ch4co2eq, n2oco2eq, factor_key=TRUE)
+wide_to_long
+
+labels <- c("PI"="Permanently Inundated (PI)","SL"="Shallow Land (SL)")
+ 
+p <-ggplot(wide_to_long, aes(x=season, y=measurement, fill=co2eq)) + geom_bar(stat="identity") + facet_wrap(~hydrology) + scale_x_discrete(labels=c("sp" = "spring", "sm" = "summer", "f" = "fall", "w" = "winter"), limits=c("sp", "sm", "f", "w")) + labs(x = "Season", y = (expression(paste("CO"[2], "eq (mg C m"^-{2}, " hr"^-{1},")")))) 
+
+p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16), axis.text=element_text(size=12), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=10), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + theme(strip.text.x = element_text(size=16), strip.text.y = element_text(size=16), strip.background = element_rect(colour="black", fill="white", size=1))
+
+ggsave("../figures/CO2equiv.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+
+ggsave("../figures/CO2equiv.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=8, height=4, dpi=300, limitsize=TRUE)
+
+is.numeric(ghg.melt$varibale)
+
+
+```
+#DENITRIFICATION ENZYME ASSAY
+```{r read in data}
+#CSW DEA data
+DEA <- read.csv("../data/CSW_DEA_Env.csv", header=T)
+```
+
+```{r DEA with acetylene, echo=T, out.width="100%"}
+#linear model for no acetylene/ yes acetylene DEA ratio
+DEA.lm <- lm(y.ng.N2ON.hr~hydrology*season,data=DEA)
+plot(DEA.lm)
+anova(DEA.lm)
+
+p <- ggplot(DEA, aes(x=season, y=y.ng.N2ON.hr, color=as.factor(hydrology), shape=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=1.5, position=position_dodge(width=0.5)) + scale_color_manual(name="Hydrology", values=c("navy","darkgreen"), labels = c("PI", "SL")) + scale_shape_manual(name="Hydrology", values=c(17,16), labels = c("PI", "SL")) + scale_x_discrete(labels=c("1spring" = "spring", "2summer" = "summer", "3fall" = "fall", "4winter" = "winter"))
+p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Season", y = (expression(paste("Denitrification Rate (ng N"[2],"O g"^-{1}," DM hr"^-{1},")")))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))+ theme(legend.title=element_text(size=14),legend.text=element_text(size=14))
+
+ggsave("../figures/DEApotential.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+
+ggsave("../figures/DEApotential.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=8, height=4, dpi=300, limitsize=TRUE)
+```
+
+```{r DEA ratio, echo=T, out.width="100%"}
+#linear model for no acetylene/ yes acetylene DEA ratio
+ratio.lm <- lm(rN2O_N2O.N2~hydrology*season,data=DEA)
+plot(ratio.lm)
+anova(ratio.lm)
+
+p <- ggplot(DEA, aes(x=season, y=rN2O_N2O.N2, color=as.factor(hydrology), shape=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=1.5, position=position_dodge(width=0.5)) + scale_color_manual(name="Hydrology", values=c("navy","darkgreen"), labels = c("PI", "SL")) + scale_shape_manual(name="Hydrology", values=c(17,16), labels = c("PI", "SL")) + scale_x_discrete(labels=c("1spring" = "spring", "2summer" = "summer", "3fall" = "fall", "4winter" = "winter"))
+p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=18), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=18), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Season", y = (expression(paste("rate(N"[2],"O)/rate(N"[2],"O+N"[2],")")))) + theme(strip.text.x = element_text(size=18, face="bold"), strip.text.y = element_text(size=18, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1)) + theme(legend.title=element_text(size=14),legend.text=element_text(size=14))
+
+ggsave("../figures/DEAratio.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+
+ggsave("../figures/DEAratio.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=8, height=4, dpi=300, limitsize=TRUE)
+```
+
+```{r DEA with acetylene by sample plot, echo=T, out.width="100%"}
+#linear model for no acetylene/ yes acetylene DEA ratio
+DEA.lm <- lm(y.ng.N2ON.hr~sample*season,data=DEA)
+plot(DEA.lm)
+anova(DEA.lm)
+
+p <- ggplot(DEA, aes(x=sample, y=y.ng.N2ON.hr, color=as.factor(hydrology), shape=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=0.75, position=position_dodge(width=0.3)) + scale_color_manual(name="Hydrology", values=c("darkgreen","navy"), labels = c("terrestrial", "inundated")) + scale_shape_manual(name="Hydrology", values=c(16,17), labels = c("terrestrial", "inundated")) +facet_wrap(~season) 
+p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=8), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Sample Location", y = (expression(paste("Denitrification Rate (ng N"[2],"O g"^-{1}," DM hr"^-{1},")")))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))+ theme(legend.title=element_text(size=14),legend.text=element_text(size=14))
+
+ggsave("../figures/DEApotential_location.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+```
