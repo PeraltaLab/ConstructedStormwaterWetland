@@ -15,7 +15,7 @@ Project Description: Analysis of seasonal denitrification potential in a constru
 
 ```{r setup, include=FALSE}
 #clears R environment
-#rm(list = ls())
+rm(list = ls())
 #use to set global options for chunks e.g., echo and warning options will be applied to all chuncks
 knitr::opts_chunk$set(echo = FALSE, warning=FALSE)
 #use to set working directory 
@@ -238,9 +238,9 @@ ggsave("../figures/co2_ch4Season.jpg", plot=last_plot(), device=NULL, path=NULL,
 
 
 ```{r read in sequence data}
-sharedfile = "../data/csw2017.opti_mcc.shared"
-taxfile = "../data/csw2017.opti_mcc.0.03.cons.taxonomy"
-metafile = "../data/CSW_16S_design.csv"
+sharedfile = "C:/Users/annorion/GitHub/ConstructedStormwaterWetland/data/csw2017.opti_mcc_withArchaea.shared"
+taxfile = "C:/Users/annorion/GitHub/ConstructedStormwaterWetland/data/csw2017.opti_mcc.0.03.cons_withArchaea.taxonomy"
+metafile = "C:/Users/annorion/GitHub/ConstructedStormwaterWetland/data/CSW_16S_design.csv"
 
 #Read in design file
 meta <- read.csv(metafile)
@@ -294,6 +294,7 @@ abline(0,1,col='red')
 text(10000,10000,"1:1",pos=2, col='red')
 
 ```
+
 ```{r Relative abundance and PERMANOVA }
 #transforms read counts to relative abundance
 #Using rarefied OTU dataset
@@ -331,8 +332,9 @@ explainvar1a
 explainvar2a
 
 ```
+
 ```{r PCoA Plot }
-all.equal(rownames(meta), rownames(otu.2.rel))
+#all.equal(rownames(meta), rownames(otu.2.rel))
 # Set treatments
 treat1 <- as.factor(meta$season)
 levels(treat1) <- ordered(c("may","oct"))
@@ -357,30 +359,28 @@ pcoa.cent.treats <- rownames(pcoa.cent.dataframe)
 pcoa.col <- as.factor(sapply(strsplit(pcoa.cent.treats, "_"), `[`, 2)) # Treatment
 pcoa.shape <- as.factor(sapply(strsplit(pcoa.cent.treats, "_"), `[`, 1))  # Plant
 
-#pcoa.shape <- ordered(c("A. virginicus", "Bulk Soil", "E. caroliniana"))
-#pcoa.shape <- ordered(pcoa.shape,levels=c("bulk","av", "ec"))
-#pcoa.shape <- revalue(pcoa.shape, c("bulk"="Bulk Soil", "av"="Grass", "ec"="Forb"))
-#pcoa.shape <- mapvalues(pcoa.shape, from = c("bulk","av","ec"), to = c("Bulk Soil", "Grass", "Forb"))
-
 levels(pcoa.col) <- c("PI","SL")
 
-#Removed RS samples becuase only have soil porperty values for RP samples
 #Run envfit to see which soil varibales are predicators 
-#meta.env <- read.csv(metafile)
-#meta.env <- meta.env[!grepl("RS", meta.env$type),]
-#meta.env <- meta.env[,-c(1:11,13:16,18:20)]
-#fit<-envfit(otu.2.rel.dist.pcoa$points, meta.env, perm=1000, na.rm=T, set.seed=42)
-#fit
+#Read in meta file but trim to just may oct 1-5W,6t-9T,11T-13
 
-#A <-as.list(fit$vectors)
-#vec<-as.data.frame(fit$vectors$arrows*sqrt(fit$vectors$r)*0.35)
-#p<- as.data.frame(A$pvals)
+meta.env <- design %>% 
+dplyr::select(ddate, month,sampleid, hydrology, season, ph, om.percent, nh4n.mg.gdw, no3n.mg.gdw, c.percent, n.percent, c.n)%>%
+  filter(ddate=='5/16/2017' | ddate=='10/15/2017') %>%
+  filter(sampleid %in% c('01W', '02W','03W', '04W','05W','07T', '08T','09T','11T', '12T', '13T'))
+
+fit<-envfit(otu.2.rel.dist.pcoa$points, meta.env, perm=1000, na.rm=T, set.seed=42)
+
+A <-as.list(fit$vectors)
+vec<-as.data.frame(fit$vectors$arrows*sqrt(fit$vectors$r)*0.35)
+p<- as.data.frame(A$pvals)
 #vec <- cbind(vec, p) 
 #vec <-  subset(vec, A$pvals<=0.05)
 
 #vec$parm<-rownames(vec)
 #colnames(vec)
 
+####None of the soil parameters were significant predictors of bacterial community beta diversity
 
 #plot PCoA
 df1a <- as.data.frame(pcoa.cent.dataframe)
@@ -391,7 +391,7 @@ plot1 <- ggplot(df1a, aes(x=V1, y=V2,  color=pcoa.shape, shape =  pcoa.col),
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + 
   #Plot soil property vectors from envfit
   ##geom_segment(data=vec, aes(x=0,xend=Dim1,y=0,yend=Dim2), size=1, 
- ##     arrow = arrow(length = unit(0.2, "cm")),colour="black",inherit.aes=F)+ 
+  ##    arrow = arrow(length = unit(0.2, "cm")),colour="black",inherit.aes=F)+ 
   #Label soil vectors. Using annotate because I can't figure out how to move segment text
   #Note when re-run should double check envfit stats to make sure that soil parameters are the same
   #geom_text(data=vec,aes(x=Dim1,y=Dim2,label=vec$parm),size=5, inherit.aes=F)+
@@ -419,7 +419,7 @@ plot1 <- ggplot(df1a, aes(x=V1, y=V2,  color=pcoa.shape, shape =  pcoa.col),
   #Sets size of tick marks on axis
   theme(axis.ticks.length=unit(0.3,"cm")) + 
   #Sets labels for plot title, axis titles, and legend headings
-  xlab("PCoA 1 (17.6%)") + ylab("PCoA 2 (12.5%)") + 
+  xlab("PCoA 1 (17.4%)") + ylab("PCoA 2 (12.7%)") + 
   labs(shape = "Season") +
   labs(colour="Treatment") +
   ggtitle("16S rRNA Microbial Community Analysis") 
@@ -429,6 +429,62 @@ plot1
 #Save a copy of the plot
 ggsave("../figures/CSW_PCoA.jpg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=8.7, height=6.3, dpi=900, limitsize=TRUE)
 
+```
+
+#DENITRIFICATION ENZYME ASSAY
+```{r read in data}
+#CSW DEA data
+DEA <- read.csv("../data/CSW_DEA_Env.csv", header=T)
+```
+```{r DEA with acetylene, echo=T, out.width="100%"}
+#linear model for no acetylene/ yes acetylene DEA ratio
+DEA.lm <- lm(y.ng.N2ON.hr.gdw~hydrology*season,data=DEA)
+plot(DEA.lm)
+anova(DEA.lm)
+
+p <- ggplot(DEA, aes(x=season, y=y.ng.N2ON.hr.gdw, color=as.factor(hydrology), shape=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=1.5, position=position_dodge(width=0.5)) + scale_color_manual(name="Hydrology", values=c("navy","darkgreen"), labels = c("PI", "SL")) + scale_shape_manual(name="Hydrology", values=c(17,16), labels = c("PI", "SL")) + scale_x_discrete(labels=c("1spring" = "spring", "2summer" = "summer", "3fall" = "fall", "4winter" = "winter"))
+p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Season", y = (expression(paste("Denitrification Rate (ng N"[2],"O g"^-{1}," DM hr"^-{1},")")))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))+ theme(legend.title=element_text(size=14),legend.text=element_text(size=14))
+
+ggsave("../figures/DEApotential.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+
+```
+```{r DEA with no acetylene, echo=T, out.width="100%"}
+#linear model for no acetylene/ yes acetylene DEA ratio
+DEA.lm <- lm(n.ng.N2ON.hr.gdw~hydrology*season,data=DEA)
+plot(DEA.lm)
+anova(DEA.lm)
+
+p <- ggplot(DEA, aes(x=season, y=n.ng.N2ON.hr.gdw, color=as.factor(hydrology), shape=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=1.5, position=position_dodge(width=0.5)) + scale_color_manual(name="Hydrology", values=c("navy","darkgreen"), labels = c("PI", "SL")) + scale_shape_manual(name="Hydrology", values=c(17,16), labels = c("PI", "SL")) + scale_x_discrete(labels=c("1spring" = "spring", "2summer" = "summer", "3fall" = "fall", "4winter" = "winter"))
+p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Season", y = (expression(paste("Denitrification Rate (ng N"[2],"O g"^-{1}," DM hr"^-{1},")")))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))+ theme(legend.title=element_text(size=14),legend.text=element_text(size=14))
+
+ggsave("../figures/DEApotential.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+
+```
+
+```{r DEA ratio, echo=T, out.width="100%"}
+#linear model for no acetylene/ yes acetylene DEA ratio
+ratio.lm <- lm(rN2O_N2O.N2~hydrology*season,data=DEA)
+plot(ratio.lm)
+anova(ratio.lm)
+
+p <- ggplot(DEA, aes(x=season, y=rN2O_N2O.N2, color=as.factor(hydrology), shape=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=1.5, position=position_dodge(width=0.5)) + scale_color_manual(name="Hydrology", values=c("navy","darkgreen"), labels = c("PI", "SL")) + scale_shape_manual(name="Hydrology", values=c(17,16), labels = c("PI", "SL")) + scale_x_discrete(labels=c("1spring" = "spring", "2summer" = "summer", "3fall" = "fall", "4winter" = "winter"))
+p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=18), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=18), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Season", y = (expression(paste("rate(N"[2],"O)/rate(N"[2],"O+N"[2],")")))) + theme(strip.text.x = element_text(size=18, face="bold"), strip.text.y = element_text(size=18, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1)) + theme(legend.title=element_text(size=14),legend.text=element_text(size=14))
+
+ggsave("../figures/DEAratio.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+
+ggsave("../figures/DEAratio.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=8, height=4, dpi=300, limitsize=TRUE)
+```
+
+```{r DEA with acetylene by sample plot, echo=T, out.width="100%"}
+#linear model for no acetylene/ yes acetylene DEA ratio
+DEA.lm <- lm(y.ng.N2ON.hr.gdw~sample*season,data=DEA)
+plot(DEA.lm)
+anova(DEA.lm)
+
+p <- ggplot(DEA, aes(x=sample, y=n.ng.N2ON.hr.gdw, color=as.factor(hydrology), shape=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=0.75, position=position_dodge(width=0.3)) + scale_color_manual(name="Hydrology", values=c("darkgreen","navy"), labels = c("terrestrial", "inundated")) + scale_shape_manual(name="Hydrology", values=c(16,17), labels = c("terrestrial", "inundated")) +facet_wrap(~season) 
+p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=8), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Sample Location", y = (expression(paste("Denitrification Rate (ng N"[2],"O g"^-{1}," DM hr"^-{1},")")))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))+ theme(legend.title=element_text(size=14),legend.text=element_text(size=14))
+
+ggsave("../figures/DEApotential_location.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
 ```
 
 ```{r load taxonomy data into phyloseq object}
@@ -508,12 +564,13 @@ table(indicator.bac$Cluster)
 levels(design.type)
 
 # Export Bacteria Indicator Table
-write.table(indicator.bac, "BacterialIndicators_treatment.txt",
+write.table(indicator.bac, "../figures/BacterialIndicators_treatment.txt",
             sep="\t", row.names = F, quote = F)
 
 #From what I can tell by comparing both methods of indicator analysis the second "cluster" 1, 2, 3, ... is the design.type in alphabetical order. So 1 = avM, 2 = avMF, 3 = bulkM, 4 = bulkMF, 5 = ecM, 6=ecMF
   
 ```
+
 ```{r phyloseq Phylum stacked graphs of taxa composition}
 
 # melt to long format (for ggploting) 
@@ -664,6 +721,7 @@ write.csv(wrc_family_o, file="family_composition.csv", row.names=TRUE)
 ggsave(file="../figures/family_stack.pdf", width=15, height=9, dpi=300)
 
 ```
+
 ```{r phyloseq Family stacked graphs of taxa composition}
 # melt to long format (for ggploting) 
 # prune out phyla below 1% in each sample
@@ -775,8 +833,9 @@ p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = el
 
 ggsave("../figures/ch4co2Season.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
 
-ggsave("../figures/ch4co2Season.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6, height=4, dpi=300, limitsize=TRUE)
+
 ```
+
 ```{r n20co2eq  by season, echo=T, out.width="100%"}
 #linear model for nitrous oxide
 ghg.lm <- lm(n2oco2eq~hydrology*season,data=ghg)
@@ -1156,47 +1215,3 @@ ggsave("../figures/CO2equiv_JustSL.pdf", plot=last_plot(), device=NULL, path=NUL
 ggsave("../figures/CO2equiv_JustSL.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=8, height=4, dpi=300, limitsize=TRUE)
 ```
 
-#DENITRIFICATION ENZYME ASSAY
-```{r read in data}
-#CSW DEA data
-DEA <- read.csv("../data/CSW_DEA_Env.csv", header=T)
-```
-
-```{r DEA with acetylene, echo=T, out.width="100%"}
-#linear model for no acetylene/ yes acetylene DEA ratio
-DEA.lm <- lm(y.ng.N2ON.hr~hydrology*season,data=DEA)
-plot(DEA.lm)
-anova(DEA.lm)
-
-p <- ggplot(DEA, aes(x=season, y=y.ng.N2ON.hr, color=as.factor(hydrology), shape=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=1.5, position=position_dodge(width=0.5)) + scale_color_manual(name="Hydrology", values=c("navy","darkgreen"), labels = c("PI", "SL")) + scale_shape_manual(name="Hydrology", values=c(17,16), labels = c("PI", "SL")) + scale_x_discrete(labels=c("1spring" = "spring", "2summer" = "summer", "3fall" = "fall", "4winter" = "winter"))
-p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Season", y = (expression(paste("Denitrification Rate (ng N"[2],"O g"^-{1}," DM hr"^-{1},")")))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))+ theme(legend.title=element_text(size=14),legend.text=element_text(size=14))
-
-ggsave("../figures/DEApotential.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
-
-ggsave("../figures/DEApotential.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=8, height=4, dpi=300, limitsize=TRUE)
-```
-
-```{r DEA ratio, echo=T, out.width="100%"}
-#linear model for no acetylene/ yes acetylene DEA ratio
-ratio.lm <- lm(rN2O_N2O.N2~hydrology*season,data=DEA)
-plot(ratio.lm)
-anova(ratio.lm)
-
-p <- ggplot(DEA, aes(x=season, y=rN2O_N2O.N2, color=as.factor(hydrology), shape=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=1.5, position=position_dodge(width=0.5)) + scale_color_manual(name="Hydrology", values=c("navy","darkgreen"), labels = c("PI", "SL")) + scale_shape_manual(name="Hydrology", values=c(17,16), labels = c("PI", "SL")) + scale_x_discrete(labels=c("1spring" = "spring", "2summer" = "summer", "3fall" = "fall", "4winter" = "winter"))
-p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=18), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=18), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Season", y = (expression(paste("rate(N"[2],"O)/rate(N"[2],"O+N"[2],")")))) + theme(strip.text.x = element_text(size=18, face="bold"), strip.text.y = element_text(size=18, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1)) + theme(legend.title=element_text(size=14),legend.text=element_text(size=14))
-
-ggsave("../figures/DEAratio.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
-
-ggsave("../figures/DEAratio.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=8, height=4, dpi=300, limitsize=TRUE)
-```
-
-```{r DEA with acetylene by sample plot, echo=T, out.width="100%"}
-#linear model for no acetylene/ yes acetylene DEA ratio
-DEA.lm <- lm(y.ng.N2ON.hr~sample*season,data=DEA)
-plot(DEA.lm)
-anova(DEA.lm)
-
-p <- ggplot(DEA, aes(x=sample, y=y.ng.N2ON.hr, color=as.factor(hydrology), shape=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=0.75, position=position_dodge(width=0.3)) + scale_color_manual(name="Hydrology", values=c("darkgreen","navy"), labels = c("terrestrial", "inundated")) + scale_shape_manual(name="Hydrology", values=c(16,17), labels = c("terrestrial", "inundated")) +facet_wrap(~season) 
-p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, angle=45, size=8), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Sample Location", y = (expression(paste("Denitrification Rate (ng N"[2],"O g"^-{1}," DM hr"^-{1},")")))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))+ theme(legend.title=element_text(size=14),legend.text=element_text(size=14))
-
-ggsave("../figures/DEApotential_location.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
