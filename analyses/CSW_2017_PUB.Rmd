@@ -2,7 +2,7 @@
 title: Examining environmental drivers on greenhouse gas production and denitrification
   potential in a constructed stormwater wetland (aka 2017 CSW)
 author: "Regina B. Bledsoe, Ariane L. Peralta"
-date: "Last updated on 17 May, 2019"
+date: "Last updated on `r format(Sys.time(), '%d %B, %Y')`"
 #output:
   #pdf_document: null
   #editor_options: null
@@ -11,7 +11,7 @@ date: "Last updated on 17 May, 2019"
   #word_document: default
   #chunk_output_type: 
 ---
-Project Description: Analysis of seasonal denitrification potential in a constructed stormwater wetland (Greenville, NC, USA).
+Project Description: Analysis of seasonal denitrification potential and greenhouse gas production in a constructed stormwater wetland (Greenville, NC, USA).
 
 ```{r setup, include=FALSE}
 #clears R environment
@@ -35,7 +35,9 @@ require("tidyverse")
 require("agricolae")
 require("vegan")
 require("reshape2") #need for pcoa
+require("labdsv")
 require("phyloseq")
+#BiocManager::install("phyloseq")
 
 #Set Std Err and Conf Int
 se <- function(x, ...) {
@@ -73,10 +75,10 @@ ghg <- mutate(ghg,
 ```
 
 ```{r plot formatting}
-colman <- c("navy","darkgreen")
-hydro_label <- c("PI", "SL")
-season <- c("sp" = "spring", "sm" = "summer", "f" = "fall", "w" = "winter")
-colseason <- c("blue","orange","brown","black")
+colman <- c("blue","chartreuse4")
+hydro_label <- c("flooded wetland", "upland")
+season_label <- c("sp" = "spring", "sm" = "summer", "f" = "fall", "w" = "winter")
+colseason <- c("brown","orange","green4","navyblue") #changed color order follows f, sm, sp, w
 ```
 
 ```{r CH4 by season, echo=T, out.width="100%"}
@@ -91,22 +93,23 @@ t <- HSD.test(ghg.lm, "i", group=TRUE, alpha=0.0)
 t
 plot(t)
 
-p <- ggplot(ghg, aes(x=season, y=ch4cgm2day, color=season, shape=hydrology)) + 
-  stat_summary(fun.data=mean_cl_boot,size=1.25) +  
-  scale_color_manual(name="Season", values=colseason, labels = season) +     
-  scale_shape_manual(name="Hydrology", values=c(17,16), labels = hydro_label) +      
-  scale_x_discrete(labels=season,limits=c("sp", "sm", "f", "w")) + 
+#boxplots
+p <- ggplot(ghg, aes(x=season, y=ch4cgm2day, color=season, shape=hydrology)) + geom_boxplot() +
+  geom_point(aes(color=factor(season)), size=2, position = position_jitterdodge()) +
+  scale_color_manual(name="Season", values=colseason, labels = season_label) +     
+  scale_shape_manual(name="Hydrology", values=c(17,21), labels = hydro_label) +      
+  scale_x_discrete(labels=season_label,limits=c("sp", "sm", "f", "w")) + 
   labs(x = "Season", y = (expression(paste("CH"[4], " (g C"," m"^-{2}," day"^-{1},")")))) +
-  ggtitle("Seasonal GHG Fluxes") +
+  ggtitle("Seasonal Methane Fluxes") +
   #set Tukey groups from HSD.test above
-  annotate("text",x=1.14,y=0.4, label="b") +
-  annotate("text",x=2.14,y=0.4, label="b") +
-  annotate("text",x=3.14,y=0.4, label="b") +
-  annotate("text",x=4.14,y=0.4, label="b") +
-  annotate("text",x=1.0,y=2.3, label="ab") +
-  annotate("text",x=2.0,y=6.1, label="a") + 
-  annotate("text",x=3.0,y=3.9, label="ab") + 
-  annotate("text",x=4.0,y=2.8, label="ab") + 
+  annotate("text",x=1.2,y=2.5, label="b") +
+  annotate("text",x=2.2,y=1.5, label="b") +
+  annotate("text",x=3.2,y=1.5, label="b") +
+  annotate("text",x=4.2,y=1.5, label="b") +
+  annotate("text",x=0.8,y=7, label="ab") +
+  annotate("text",x=1.8,y=10, label="a") + 
+  annotate("text",x=2.8,y=10, label="ab") + 
+  annotate("text",x=3.8,y=9, label="ab") + 
   #set plot design
   theme_bw() + 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line =   
@@ -130,22 +133,22 @@ t <- HSD.test(ghg.lm, "i", group=TRUE, alpha=0.01)
 t
 plot(t)
 
-p <- ggplot(ghg, aes(x=season, y=co2cgm2day, color=season, shape=hydrology)) + 
-  stat_summary(fun.data=mean_cl_boot,size=1.25) +  
+p <- ggplot(ghg, aes(x=season, y=co2cgm2day, color=season, shape=hydrology)) + geom_boxplot() +
+  geom_point(aes(color=factor(season)), size=2, position = position_jitterdodge()) +
   scale_color_manual(name="Season", values=colseason, labels = season) +     
-  scale_shape_manual(name="Hydrology", values=c(17,16), labels = hydro_label) +      
+  scale_shape_manual(name="Hydrology", values=c(17,21), labels = hydro_label) +      
   scale_x_discrete(labels=season,limits=c("sp", "sm", "f", "w")) + 
   labs(x = "Season", y = (expression(paste("CO"[2], " (g C"," m"^-{2}," day"^-{1},")")))) +
-  ggtitle("Seasonal GHG Fluxes") +
+  ggtitle("Seasonal Carbon Dioxide Fluxes") +
   #set Tukey groups from HSD.test above
-  annotate("text",x=1.0,y=0.65, label="b") +
-  annotate("text",x=2.0,y=0.85, label="b") +
-  annotate("text",x=3.0,y=0.62, label="b") +
-  annotate("text",x=4.0,y=-0.2, label="b") +
-  annotate("text",x=1.0,y=2.2, label="b") +
-  annotate("text",x=2.0,y=6.55, label="a") + 
-  annotate("text",x=3.0,y=2.0, label="b") + 
-  annotate("text",x=4.0,y=1.8, label="b") + 
+  annotate("text",x=0.8,y=5, label="b") +
+  annotate("text",x=1.2,y=4, label="b") +
+  annotate("text",x=1.8,y=8, label="a") + 
+  annotate("text",x=2.2,y=4, label="b") +
+  annotate("text",x=2.8,y=4.2, label="b") +
+  annotate("text",x=3.2,y=4.2, label="b") + 
+  annotate("text",x=3.8,y=4.2, label="b") +
+  annotate("text",x=4.2,y=4.2, label="b") + 
   #set plot design
   theme_bw() + 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line =   
@@ -169,22 +172,22 @@ t <- HSD.test(ghg.lm, "i", group=TRUE, alpha=0.01)
 t
 plot(t)
 
-p <- ggplot(ghg, aes(x=season, y=n2ongm2day, color=season, shape=hydrology)) + 
-  stat_summary(fun.data=mean_cl_boot,size=1.25) +  
+p <- ggplot(ghg, aes(x=season, y=n2ongm2day, color=season, shape=hydrology)) + geom_boxplot() +
+  geom_point(aes(color=factor(season)), size=2, position = position_jitterdodge()) + 
   scale_color_manual(name="Season", values=colseason, labels = season) +     
-  scale_shape_manual(name="Hydrology", values=c(17,16), labels = hydro_label) +      
+  scale_shape_manual(name="Hydrology", values=c(17,21), labels = hydro_label) +      
   scale_x_discrete(labels=season,limits=c("sp", "sm", "f", "w")) + 
   labs(x = "Season", y = (expression(paste("N"[2],"O", " (g C"," m"^-{2}," day"^-{1},")")))) +
-  ggtitle("Seasonal GHG Fluxes") +
+  ggtitle("Seasonal Nitrous Oxide Fluxes") +
   #set Tukey groups from HSD.test above
-  annotate("text",x=1.25,y=0, label="b") +
-  annotate("text",x=2.25,y=0.0002, label="b") +
-  annotate("text",x=3.25,y=-0.001, label="b") +
-  annotate("text",x=4.25,y=-0.0005, label="b") +
-  annotate("text",x=1.25,y=-0.0018, label="b") +
-  annotate("text",x=2.25,y=-0.0045, label="a") + 
-  annotate("text",x=3.25,y=-0.0027, label="b") + 
-  annotate("text",x=4.25,y=-0.0014, label="b") + 
+  annotate("text",x=0.8,y=0.005, label="b") +
+  annotate("text",x=1.8,y=0.008, label="b") +
+  annotate("text",x=2.8,y=0.005, label="b") +
+  annotate("text",x=3.8,y=0.009, label="b") +
+  annotate("text",x=1.2,y=0.005, label="b") +
+  annotate("text",x=2.2,y=0.007, label="a") + 
+  annotate("text",x=3.2,y=0.005, label="b") + 
+  annotate("text",x=4.2,y=0.005, label="b") + 
   #set plot design
   theme_bw() + 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line =   
@@ -198,10 +201,16 @@ ggsave("../figures/N2ObySeason.jpg", plot=last_plot(), device=NULL, path=NULL, s
 
 ```{r CO2:CH4  by season, echo=T, out.width="100%"}
 #linear model for methane
-i <- with(ghg, interaction(hydrology,season))
-ghg.lm <- lm(co2_ch4~hydrology+season+i,data=ghg)
+#remove outlier spring co2_ch4 >8000
+ghg.ratio <- subset(ghg, co2_ch4<60000)
+i <- with(ghg.ratio, interaction(hydrology,season))
+ghg.lm <- lm(co2_ch4~hydrology+season+i,data=ghg.ratio)
 plot(ghg.lm)
 anova(ghg.lm)
+#i <- with(ghg, interaction(hydrology,season))
+#ghg.lm <- lm(co2_ch4~hydrology+season+i,data=ghg)
+#plot(ghg.lm)
+#anova(ghg.lm)
 
 summary(ghg.lm)
 
@@ -209,22 +218,14 @@ t <- HSD.test(ghg.lm, "i", group=TRUE, alpha=0.05)
 t
 plot(t)
 
-p <- ggplot(ghg, aes(x=season, y=co2_ch4, color=season, shape=hydrology)) + 
-  stat_summary(fun.data=mean_cl_boot,size=1.25) +  
+p <- ggplot(ghg.ratio, aes(x=season, y=co2_ch4, color=season, shape=hydrology))+ geom_boxplot() +
+  geom_point(aes(color=factor(season)), size=2, position = position_jitterdodge()) +  
   scale_color_manual(name="Season", values=colseason, labels = season) +     
-  scale_shape_manual(name="Hydrology", values=c(17,16), labels = hydro_label) +      
+  scale_shape_manual(name="Hydrology", values=c(17,21), labels = hydro_label) +      
   scale_x_discrete(labels=season,limits=c("sp", "sm", "f", "w")) + 
   labs(x = "Season", y = (expression(paste("CO"[2],": CH"[4])))) +
-  ggtitle("Seasonal GHG Fluxes") +
-  #set Tukey groups from HSD.test above
-  #annotate("text",x=1.25,y=0, label="b") +
-  #annotate("text",x=2.25,y=0.0002, label="b") +
-  #annotate("text",x=3.25,y=-0.001, label="b") +
-  #annotate("text",x=4.25,y=-0.0005, label="b") +
-  #annotate("text",x=1.25,y=-0.0018, label="b") +
-  #annotate("text",x=2.25,y=-0.0045, label="a") + 
-  #annotate("text",x=3.25,y=-0.0027, label="b") + 
-  #annotate("text",x=4.25,y=-0.0014, label="b") + 
+  ggtitle("Seasonal carbon dioxide:methane ratio") +
+
   #set plot design
   theme_bw() + 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line =   
@@ -238,21 +239,22 @@ ggsave("../figures/co2_ch4Season.jpg", plot=last_plot(), device=NULL, path=NULL,
 
 
 ```{r read in sequence data}
-sharedfile = "C:/Users/annorion/GitHub/ConstructedStormwaterWetland/data/csw2017.opti_mcc_withArchaea.shared"
-taxfile = "C:/Users/annorion/GitHub/ConstructedStormwaterWetland/data/csw2017.opti_mcc.0.03.cons_withArchaea.taxonomy"
-metafile = "C:/Users/annorion/GitHub/ConstructedStormwaterWetland/data/CSW_16S_design.csv"
-
 #Read in design file
-meta <- read.csv(metafile)
+meta <- read.csv("../data/CSW_16S_design.csv", row.names=1)
 #Read in OTU file
-otu <- read.otu(sharedfile)
+otu <- read.otu("../data/csw2017.opti_mcc_withArchaea.shared")
+
+# Import Taxonomy File
+tax <- read.tax(taxonomy = "../data/csw2017.opti_mcc.0.03.cons_withArchaea.taxonomy",
+                   format = "rdp", tax.levels = 6, col.tax = 3)
+
 #tax <- read.tax(taxfile)
-#read.tax does not work and I was unable to solve issue. I use phyloseq import_mothur as a work around. 
-tax <- import_mothur(mothur_constaxonomy_file =  taxfile)
+#read.tax does not work and I was unable to solve issue. I use phyloseq import_mothur as a work around. #there was no 'bin' folder with MothurTools
+#tax <- import_mothur(mothur_constaxonomy_file =  taxfile)
 tax.df <- as.data.frame(tax)
 colnames(tax.df)=c("Domain","Phylum","Class", "Order","Family","Genus")
 tax <- tax_table(tax.df)
-tax
+#tax
 
 #Remove OTUs with less than 2 occurences across all sites
 otu.2 <- otu[, which(colSums(otu) > 2)]
@@ -279,8 +281,6 @@ min.N <- min(rowSums(otu.2))
 #This is the otu set that should be used for beta diversity metrics
 otu.rare <- rrarefy(otu.2, min.N)
 
-
-
 ```
 
 
@@ -288,7 +288,7 @@ otu.rare <- rrarefy(otu.2, min.N)
 #rarefy returns a species richness estimate in a random subsample of selected size
 otu.rare.rich <- rarefy(x = otu.2, sample=min.N, se=T)
 #Plot rarefaction curve
-###I am not sure how to interpret this. I think it suggests that I did not capture all of the diversity? 
+###I am not sure how to interpret this. I think it suggests that I did not capture all of the diversity? AP response: Yes, when the collector's curve is still increasing, then if we sampled more deeply, there would still be new OTUs sampled
 rarecurve(x = otu.2, step = 20, col="blue", cex=0.6, las=1)
 abline(0,1,col='red')
 text(10000,10000,"1:1",pos=2, col='red')
@@ -336,13 +336,12 @@ explainvar2a
 ```{r PCoA Plot }
 #all.equal(rownames(meta), rownames(otu.2.rel))
 # Set treatments
-treat1 <- as.factor(meta$season)
-levels(treat1) <- ordered(c("may","oct"))
+treat1 <- as.factor(meta$month)
+levels(treat1) <- ordered(c("May","October"))
 treat2 <- as.factor(meta$treatment)
-levels(treat2) <- c("PI", "SL")
+levels(treat2) <- c("flooded wetland", "upland")
 
 pcoa.groups <- paste(meta$month, meta$treatment, sep = "_")
-
 pcoa.points <- data.frame(otu.2.rel.dist.pcoa$points, group = pcoa.groups)
 
 # Calculate Centroids (mean and SE)
@@ -351,18 +350,16 @@ pcoa.centroids <- acast(pcoa.L.centroids, variable ~ group, mean)
 pcoa.centroids.se <- acast(pcoa.L.centroids, variable ~ group, se)
 pcoa.centroids.sd <- acast(pcoa.L.centroids, variable ~ group, sd)
 
+# Combine - updated
 # Combine
 pcoa.cent.dataframe <- cbind(t(pcoa.centroids), t(pcoa.centroids.se))
 colnames(pcoa.cent.dataframe) <- c("V1", "V2", "V1e", "V2e")
 pcoa.cent.treats <- rownames(pcoa.cent.dataframe)
-
-pcoa.col <- as.factor(sapply(strsplit(pcoa.cent.treats, "_"), `[`, 2)) # Treatment
-pcoa.shape <- as.factor(sapply(strsplit(pcoa.cent.treats, "_"), `[`, 1))  # Plant
-
-levels(pcoa.col) <- c("PI","SL")
-
-#Run envfit to see which soil varibales are predicators 
-#Read in meta file but trim to just may oct 1-5W,6t-9T,11T-13
+trt.month <- c("May","May","October","October")
+trt.location <- c("flooded wetland", "upland","flooded wetland", "upland")
+pcoa.cent.dataframe.trts <- as.data.frame(pcoa.cent.dataframe)
+pcoa.cent.dataframe.trts$month <- as.factor(trt.month)
+pcoa.cent.dataframe.trts$location <- as.factor(trt.location)
 
 meta.env <- design %>% 
 dplyr::select(ddate, month,sampleid, hydrology, season, ph, om.percent, nh4n.mg.gdw, no3n.mg.gdw, c.percent, n.percent, c.n)%>%
@@ -383,32 +380,22 @@ p<- as.data.frame(A$pvals)
 ####None of the soil parameters were significant predictors of bacterial community beta diversity
 
 #plot PCoA
-df1a <- as.data.frame(pcoa.cent.dataframe)
-plot1 <- ggplot(df1a, aes(x=V1, y=V2,  color=pcoa.shape, shape =  pcoa.col),
-                 group = interaction(pcoa.col, pcoa.shape)) + theme_bw()  + 
-  geom_point(aes(shape = pcoa.col, colour = pcoa.shape), size=7) + 
-  #removes gridlines from plot
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + 
-  #Plot soil property vectors from envfit
-  ##geom_segment(data=vec, aes(x=0,xend=Dim1,y=0,yend=Dim2), size=1, 
-  ##    arrow = arrow(length = unit(0.2, "cm")),colour="black",inherit.aes=F)+ 
-  #Label soil vectors. Using annotate because I can't figure out how to move segment text
-  #Note when re-run should double check envfit stats to make sure that soil parameters are the same
-  #geom_text(data=vec,aes(x=Dim1,y=Dim2,label=vec$parm),size=5, inherit.aes=F)+
-  #annotate("text",x=-0.02,y=0.2, label="C%") +
-  #annotate("text",x=0.02,y=0.2, label="N%") +
-  #annotate("text",x=0,y=-.2, label="moisture") +
-  #annotate("text",x=0.1,y=-.225, label="pH") +
-  #Set error bacrs for geom_point
-  geom_errorbarh(aes(xmax=V1+V1e, xmin=V1-V1e, height=0.02), colour="black") +    
+df1a <- as.data.frame(pcoa.cent.dataframe.trts)
+plot1 <- ggplot(df1a, aes(x=V1, y=V2,  color=location, shape = month),
+                 group = interaction(month, location)) + theme_bw()  + 
+    geom_errorbarh(aes(xmax=V1+V1e, xmin=V1-V1e, height=0.02), colour="black") +    
   geom_errorbar(aes(ymax=V2+V2e, ymin=V2-V2e, width=0.02), colour="black") + 
-  #Set colors for treatments
-  scale_colour_manual(values = colman) +
-  #Would have liked to set shapes but couldn't get this to work
-  #scale_shape_manual(values = c(22, 21, 24)) +
-  #Sets map coordinates
+  geom_point(aes(shape = month, colour = location), size=7) + 
+#removes gridlines from plot
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + 
+#Set colors for treatments
+  scale_colour_manual(labels = c("flooded wetland", "upland"), 
+                    values = c("blue", "chartreuse4")) + 
+  scale_shape_manual(labels = c("May", "October"), 
+                   values = c(16,15)) +
+#Sets map coordinates
   coord_cartesian(xlim = c(-0.3, 0.3), ylim = c(-0.3, 0.3)) +
-  #Sets axis text and put border around plot
+#Sets axis text and put border around plot
   theme(axis.title = element_text(size=14), 
         axis.text.x = element_text(size=14),  axis.text.y = element_text(size=14),
         panel.border = element_rect(colour = "black", size=1.25)) +
@@ -419,10 +406,10 @@ plot1 <- ggplot(df1a, aes(x=V1, y=V2,  color=pcoa.shape, shape =  pcoa.col),
   #Sets size of tick marks on axis
   theme(axis.ticks.length=unit(0.3,"cm")) + 
   #Sets labels for plot title, axis titles, and legend headings
-  xlab("PCoA 1 (17.4%)") + ylab("PCoA 2 (12.7%)") + 
-  labs(shape = "Season") +
-  labs(colour="Treatment") +
-  ggtitle("16S rRNA Microbial Community Analysis") 
+  xlab("PCoA 1 (17.4%)") + ylab("PCoA 2 (13.0%)") + 
+  labs(shape = "Month") +
+  labs(colour="Location") +
+  ggtitle("16S rRNA Microbial Community Composition") 
   
 plot1 
 
@@ -436,28 +423,47 @@ ggsave("../figures/CSW_PCoA.jpg", plot=last_plot(), device=NULL, path=NULL, scal
 #CSW DEA data
 DEA <- read.csv("../data/CSW_DEA_Env.csv", header=T)
 ```
+
 ```{r DEA with acetylene, echo=T, out.width="100%"}
 #linear model for no acetylene/ yes acetylene DEA ratio
 DEA.lm <- lm(y.ng.N2ON.hr.gdw~hydrology*season,data=DEA)
 plot(DEA.lm)
 anova(DEA.lm)
+#hydro_label <- c("flooded wetland", "upland")
+p <- ggplot(DEA, aes(x=season, y=y.ng.N2ON.hr.gdw, color=as.factor(hydrology), shape=as.factor(hydrology))) +   
+      geom_boxplot() + geom_point(aes(color=factor(hydrology)), size=2, position = position_jitterdodge()) +   
+      scale_color_manual(name="Hydrology", values=c("blue", "chartreuse4"), labels = hydro_label) + 
+      scale_shape_manual(name="Hydrology", values=c(17,21), labels = c("flooded wetland", "upland")) +
+      scale_x_discrete(labels=c("1spring" = "spring", "2summer" = "summer", "3fall" = "fall", "4winter" = "winter"))
+p1 <- p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = 
+              element_line(colour = "black")) + 
+      theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=16), axis.text.x = 
+              element_text(vjust=0.65, hjust=0.5, size=16), panel.border = element_rect(colour = "black",size=1)) +   
+      theme(axis.ticks.length=unit(0.3,"cm")) + 
+      labs(x = "Season", y = (expression(paste("Denitrification Rate (ng N"[2],"O g"^-{1}," DM hr"^-{1},")")))) +   
+      theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"),
+              strip.background = element_rect(colour="black", fill="white", size=1)) +
+      theme(legend.title=element_text(size=14),legend.text=element_text(size=14))
+p1
 
-p <- ggplot(DEA, aes(x=season, y=y.ng.N2ON.hr.gdw, color=as.factor(hydrology), shape=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=1.5, position=position_dodge(width=0.5)) + scale_color_manual(name="Hydrology", values=c("navy","darkgreen"), labels = c("PI", "SL")) + scale_shape_manual(name="Hydrology", values=c(17,16), labels = c("PI", "SL")) + scale_x_discrete(labels=c("1spring" = "spring", "2summer" = "summer", "3fall" = "fall", "4winter" = "winter"))
-p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Season", y = (expression(paste("Denitrification Rate (ng N"[2],"O g"^-{1}," DM hr"^-{1},")")))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))+ theme(legend.title=element_text(size=14),legend.text=element_text(size=14))
-
-ggsave("../figures/DEApotential.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
-
+ggsave("../figures/DEApotential.jpg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6, height=4, dpi=300, limitsize=TRUE)
 ```
+
 ```{r DEA with no acetylene, echo=T, out.width="100%"}
 #linear model for no acetylene/ yes acetylene DEA ratio
 DEA.lm <- lm(n.ng.N2ON.hr.gdw~hydrology*season,data=DEA)
 plot(DEA.lm)
 anova(DEA.lm)
 
-p <- ggplot(DEA, aes(x=season, y=n.ng.N2ON.hr.gdw, color=as.factor(hydrology), shape=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=1.5, position=position_dodge(width=0.5)) + scale_color_manual(name="Hydrology", values=c("navy","darkgreen"), labels = c("PI", "SL")) + scale_shape_manual(name="Hydrology", values=c(17,16), labels = c("PI", "SL")) + scale_x_discrete(labels=c("1spring" = "spring", "2summer" = "summer", "3fall" = "fall", "4winter" = "winter"))
-p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Season", y = (expression(paste("Denitrification Rate (ng N"[2],"O g"^-{1}," DM hr"^-{1},")")))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))+ theme(legend.title=element_text(size=14),legend.text=element_text(size=14))
+p <- ggplot(DEA, aes(x=season, y=n.ng.N2ON.hr.gdw, color=as.factor(hydrology), shape=as.factor(hydrology))) + 
+      geom_boxplot() + geom_point(aes(color=factor(hydrology)), size=2, position = position_jitterdodge())  + 
+      scale_color_manual(name="Hydrology", values=c("navy","darkgreen"), labels = hydro_label) + 
+      scale_shape_manual(name="Hydrology", values=c(17,21), labels = c("flooded wetland", "upland")) + 
+      scale_x_discrete(labels=c("1spring" = "spring", "2summer" = "summer", "3fall" = "fall", "4winter" = "winter"))
+p1 <- p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Season", y = (expression(paste("Denitrification Rate (ng N"[2],"O g"^-{1}," DM hr"^-{1},")")))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))+ theme(legend.title=element_text(size=14),legend.text=element_text(size=14))
+p1
 
-ggsave("../figures/DEApotential.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+ggsave("../figures/DEApotential_NOacetylene.jpg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6, height=4, dpi=300, limitsize=TRUE)
 
 ```
 
@@ -467,12 +473,24 @@ ratio.lm <- lm(rN2O_N2O.N2~hydrology*season,data=DEA)
 plot(ratio.lm)
 anova(ratio.lm)
 
-p <- ggplot(DEA, aes(x=season, y=rN2O_N2O.N2, color=as.factor(hydrology), shape=as.factor(hydrology))) + stat_summary(fun.data=mean_cl_boot,size=1.5, position=position_dodge(width=0.5)) + scale_color_manual(name="Hydrology", values=c("navy","darkgreen"), labels = c("PI", "SL")) + scale_shape_manual(name="Hydrology", values=c(17,16), labels = c("PI", "SL")) + scale_x_discrete(labels=c("1spring" = "spring", "2summer" = "summer", "3fall" = "fall", "4winter" = "winter"))
-p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=18), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=18), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Season", y = (expression(paste("rate(N"[2],"O)/rate(N"[2],"O+N"[2],")")))) + theme(strip.text.x = element_text(size=18, face="bold"), strip.text.y = element_text(size=18, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1)) + theme(legend.title=element_text(size=14),legend.text=element_text(size=14))
+p <- ggplot(DEA, aes(x=season, y=rN2O_N2O.N2, color=as.factor(hydrology), shape=as.factor(hydrology))) +
+      geom_boxplot() + geom_point(aes(color=factor(hydrology)), size=2, position = position_jitterdodge()) + 
+      scale_color_manual(name="Hydrology", values=c("navy","darkgreen"), labels = hydro_label) + 
+      scale_shape_manual(name="Hydrology", values=c(17,21), labels = hydro_label) + 
+      scale_x_discrete(labels=c("1spring" = "spring", "2summer" = "summer", "3fall" = "fall", "4winter" = "winter"))
+p1 <- p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = 
+              element_line(colour = "black")) +
+      theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=18), axis.text.x = 
+              element_text(vjust=0.65, hjust=0.5, size=18), panel.border = element_rect(colour = "black",size=1)) + 
+      theme(axis.ticks.length=unit(0.3,"cm")) + 
+              labs(x = "Season", y = (expression(paste("rate(N"[2],"O)/rate(N"[2],"O+N"[2],")")))) + 
+      theme(strip.text.x = element_text(size=18, face="bold"), 
+              strip.text.y = element_text(size=18, face="bold"), 
+              strip.background = element_rect(colour="black", fill="white", size=1)) +   
+      theme(legend.title=element_text(size=14),legend.text=element_text(size=14))
+p1
 
-ggsave("../figures/DEAratio.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
-
-ggsave("../figures/DEAratio.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=8, height=4, dpi=300, limitsize=TRUE)
+ggsave("../figures/DEAratio.jpeg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6, height=4, dpi=300, limitsize=TRUE)
 ```
 
 ```{r DEA with acetylene by sample plot, echo=T, out.width="100%"}
@@ -490,16 +508,18 @@ ggsave("../figures/DEApotential_location.pdf", plot=last_plot(), device=NULL, pa
 ```{r load taxonomy data into phyloseq object}
 # Import otu and tax into phyloseq
 otu <- otu_table(t(otu.2), taxa_are_rows = T)
-tax <- import_mothur(mothur_constaxonomy_file =  taxfile)
+#tax <- import_mothur(mothur_constaxonomy_file =  taxfile)
 #rownames(meta) <- meta$group
 sample <- sample_data(meta)
 #import into phyloseq
-phy<-phyloseq(otu,tax)
+phy<-phyloseq(otu,tax) #################################ERROR  
+  #invalid class “phyloseq” object: 
+  #Component taxa/OTU names do not match
 row.names(sample)=meta$Group
 sample_names(sample)
 #Assign rownames to be Sample ID's
 # Merge mothurdata object with sample metadata
-meta_merge <- merge_phyloseq(phy,sample)
+meta_merge <- merge_phyloseq(phy,sample_names)
 
 #meta_merge
 
@@ -514,7 +534,9 @@ rank_names(meta_merge)
 #sample_names(meta_merge)
 #tax_table(meta_merge)[1:5, 2:6]
 
-treat_merge = merge_samples(meta_merge, sample_data(meta_merge)$treatment)
+treat_merge = merge_samples(meta_merge, sample(meta_merge)$treatment) 
+# error - Error in x[sample.int(length(x), size, replace, prob)] : 
+  #object of type 'S4' is not subsettable
 otu_table(treat_merge)[1:5,1:5]
 ```
 
