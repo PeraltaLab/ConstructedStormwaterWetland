@@ -88,7 +88,7 @@ season_label <- c("sp" = "spring", "sm" = "summer", "f" = "fall", "w" = "winter"
 colseason <- c("brown","orange","green4","navyblue") #changed color order follows f, sm, sp, w
 ```
 
-```{r GHG}
+```{r GHG_CH4 summary}
 #I want to know if hydrology, season, distance.m (from inlet to outlet), or num.days.last.rain has the greatest influence on CH4, CO2, and N2O fluxes from the wetland
 
 #Coverted distance.m to categorical factor, it is the same each sampling
@@ -108,7 +108,7 @@ ghg.summary <- ghg %>%
 ghg.summary
 
 ghg.summary <- ghg %>%
-  group_by(hydrology, bin)%>%
+  group_by(hydrology, distance.bin)%>%
   dplyr::summarise(mean_ch4cmgm2hr=mean(ch4cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_co2cmgm2hr=mean(co2cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_n2onmgm2hr=mean(n2onmgm2hr), sd_n2onmgm2hr=sd(n2onmgm2hr))
 
 ghg.summary
@@ -118,8 +118,8 @@ ghg.summary <- ghg %>%
   dplyr::summarise(mean_ch4cmgm2hr=mean(ch4cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_co2cmgm2hr=mean(co2cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_n2onmgm2hr=mean(n2onmgm2hr), sd_n2onmgm2hr=sd(n2onmgm2hr))
 
 ghg.summary
-
-#Quick visualization 
+```
+```{r CH4 Quick visualization} 
 #Mike suggested violin plots so I gave it a go and they were very squished
 #####Why are they so squished? 
 ggplot(aes(x=sampleid, y=ch4cmgm2hr, color=hydrology), data=ghg)+
@@ -134,11 +134,10 @@ ggplot(aes(x=sampleid, y=ch4cmgm2hr, color=hydrology), data=ghg)+
   geom_boxplot()+
   facet_grid(~season)
 ggplot(aes(x=sampleid, y=ch4cmgm2hr, color=hydrology), data=ghg)+
-  geom_violin(trim=FALSE)
+  geom_boxplot()
+```
 
-#Hypothesis testing
-#Hydrology, season, distance.bin
-
+```{r CH4 Do we have normaility?}
 #First check the distibution of residuals --- not so great
 ch4.lm <- lmer(ch4cmgm2hr~(1|sampleid), data=ghg, REML=TRUE)
 summary(ch4.lm, ddf="Kenward-Roger")
@@ -150,7 +149,7 @@ qqPlot(resid(ch4.lm), main="QQ Plot")
 shapiro.test(resid(ch4.lm))
 
 #Try cuberoot - works with negative values
-#This decreased variance, CI not 0, but still not normal 
+#This decreased variance in random effects, CI not 0, but still not normal or is it? 
 ch4.lm <- lmer((ch4cmgm2hr)^(1/3)~(1|sampleid), data=ghg, REML=TRUE)
 summary(ch4.lm, ddf="Kenward-Roger")
 confint(ch4.lm)
@@ -180,8 +179,8 @@ shapiro.test(resid(ch4.lm))
 #Keep getting error. Think needs to be lm instead...
 
 ```
-```{r model comparisions log}
-#Which environmental parameters help explain GHG production?
+```{r Hypothesis testing log}
+#Which factor/s (Hydrology, season, distance.bin) help explain GHG production?
 
 #ANOVA is is not best here because it treats each observation as an independent observation but can not account for the randomness from sampling the same location. 
 #Each sampling plot is measured for GHG monthly over 1 year (n=12). 
@@ -211,7 +210,7 @@ anova(ch4.lm1, ch4.lm2, ch4.lm3,ch4.lm4,ch4.lm5, ch4.lm6, ch4.lm7, ch4.lm8)
 
 ```
 
-```{r model comparisions no log}
+```{r Hypothesis testing not log}
 
 ch4.lm1 <- lmer(ch4cmgm2hr ~ (1|sampleid) , data=ghg, REML=FALSE)
 
@@ -235,6 +234,9 @@ anova(ch4.lm1, ch4.lm2, ch4.lm3,ch4.lm4,ch4.lm5, ch4.lm6, ch4.lm7, ch4.lm8)
 
 
 ###STOPPED HERE
+
+```{}
+
 ```{r soil_sediment parameters}
 #First sediment parameters. There are GHG fluxes and sediment properties for 4 timepoints (May, Aug, Oct, Dec)
 #Filter ghg dataset to include only sampling points with soil variables
