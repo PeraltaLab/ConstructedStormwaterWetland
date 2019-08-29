@@ -38,6 +38,11 @@ require("vegan")
 require("reshape2") #need for pcoa
 require("labdsv")
 require("phyloseq")
+require("lme4")
+require("car")
+require("MASS")
+require("lindia")
+
 #BiocManager::install("phyloseq")
 
 #Set Std Err and Conf Int
@@ -49,6 +54,7 @@ ci <- function(x, ...) {
 }
 
 set.seed(42)
+
 ```
 
 ```{r read in ghg and environmental data}
@@ -67,9 +73,9 @@ ghg <- filter(ghg, !is.na(ghg$ch4cgm2day))
 #now can combine design and ghg datasets
 ghg <- cbind(ghg, design)
 
-#Add calculated fields 
+#Add calculated fields
 ghg <- mutate(ghg, 
-      #co2.ch4=ghg$co2cgmday/ghg$ch4cgm2day, #co2:ch4 ratio   
+      co2ch4=ghg$ch4cmgm2day/ghg$co2cmgm2day, #ch4:co2 ratio   
       ch4co2eq=ghg$ch4cmgm2day*25, #methane carbon dioxide equivalents
       n2oco2eq=ghg$n2onmgm2day*298 #nitrous oxide carbon dixode equivalents
       )
@@ -82,35 +88,192 @@ season_label <- c("sp" = "spring", "sm" = "summer", "f" = "fall", "w" = "winter"
 colseason <- c("brown","orange","green4","navyblue") #changed color order follows f, sm, sp, w
 ```
 
+```{r GHG}
+#I want to know if hydrology, season, distance.m (from inlet to outlet), or num.days.last.rain has the greatest influence on CH4, CO2, and N2O fluxes from the wetland
+
+#Coverted distance.m to categorical factor, it is the same each sampling
+#inlet:1w, 6t, 7t  #middle:2w, 3w, 8t, 9t, 10t    outlet: 4w, 5w, 11t, 12t, 13t   #upland 14t, 15t
+
+#Quick Data Summary
+ghg.summary <- ghg %>%
+  group_by(hydrology)%>%
+  dplyr::summarise(mean_ch4cmgm2hr=mean(ch4cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_co2cmgm2hr=mean(co2cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_n2onmgm2hr=mean(n2onmgm2hr), sd_n2onmgm2hr=sd(n2onmgm2hr))
+
+ghg.summary
+
+ghg.summary <- ghg %>%
+  group_by(hydrology, num.days.last.rain)%>%
+  dplyr::summarise(mean_ch4cmgm2hr=mean(ch4cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_co2cmgm2hr=mean(co2cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_n2onmgm2hr=mean(n2onmgm2hr), sd_n2onmgm2hr=sd(n2onmgm2hr))
+
+ghg.summary
+
+ghg.summary <- ghg %>%
+  group_by(hydrology, bin)%>%
+  dplyr::summarise(mean_ch4cmgm2hr=mean(ch4cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_co2cmgm2hr=mean(co2cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_n2onmgm2hr=mean(n2onmgm2hr), sd_n2onmgm2hr=sd(n2onmgm2hr))
+
+ghg.summary
+
+ghg.summary <- ghg %>%
+  group_by(hydrology, season)%>%
+  dplyr::summarise(mean_ch4cmgm2hr=mean(ch4cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_co2cmgm2hr=mean(co2cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_n2onmgm2hr=mean(n2onmgm2hr), sd_n2onmgm2hr=sd(n2onmgm2hr))
+
+ghg.summary
+
+#Quick visualization 
+#Mike suggested violin plots so I gave it a go and they were very squished
+#####Why are they so squished? 
+ggplot(aes(x=sampleid, y=ch4cmgm2hr, color=hydrology), data=ghg)+
+  geom_violin(trim=FALSE) +
+  facet_grid(~season)
+#sqrt seems to unsquish them bit
+ggplot(aes(x=sampleid, y=sqrt(ch4cmgm2hr), color=hydrology), data=ghg)+
+  geom_violin(trim=FALSE)+
+  facet_grid(~season)
+#maybe boxplots are not so bad in this case?
+ggplot(aes(x=sampleid, y=ch4cmgm2hr, color=hydrology), data=ghg)+
+  geom_boxplot()+
+  facet_grid(~season)
+ggplot(aes(x=sampleid, y=ch4cmgm2hr, color=hydrology), data=ghg)+
+  geom_violin(trim=FALSE)
+
+#Hypothesis testing
+#Hydrology, season, distance.bin
+
+#First check the distibution of residuals --- not so great
+ch4.lm <- lmer(ch4cmgm2hr~(1|sampleid), data=ghg, REML=TRUE)
+summary(ch4.lm, ddf="Kenward-Roger")
+confint(ch4.lm)
+p=profile(ch4.lm)
+xyplot(p)
+densityplot(p)
+qqPlot(resid(ch4.lm), main="QQ Plot")
+shapiro.test(resid(ch4.lm))
+
+#Try cuberoot - works with negative values
+#This decreased variance, CI not 0, but still not normal 
+ch4.lm <- lmer((ch4cmgm2hr)^(1/3)~(1|sampleid), data=ghg, REML=TRUE)
+summary(ch4.lm, ddf="Kenward-Roger")
+confint(ch4.lm)
+p=profile(ch4.lm)
+xyplot(p)
+densityplot(p)
+qqPlot(resid(ch4.lm), main="QQ Plot")
+shapiro.test(resid(ch4.lm))
+
+#Since dataset still not normal... going to try log by first adding a constant to deal with < 0 values
+m <- min(ghg$ch4cmgm2hr)
+ghg$log.ch4 <- log(1+ m + ghg$ch4cmgm2hr)
+
+ch4.lm <- lmer(log.ch4~(1|sampleid), data=ghg, REML=TRUE)
+summary(ch4.lm, ddf="Kenward-Roger")
+confint(ch4.lm)
+p=profile(ch4.lm)
+xyplot(p)
+densityplot(p)
+qqPlot(resid(ch4.lm), main="QQ Plot")
+shapiro.test(resid(ch4.lm))
+
+###Not sure if logging helped. Looks like one of diagnostics is better and one is worse. I will run models with both and see what happens
+
+#boxcox for scaling best transformation
+#This tells you what lambda value to scale data too
+#Keep getting error. Think needs to be lm instead...
+
+```
+```{r model comparisions log}
+#Which environmental parameters help explain GHG production?
+
+#ANOVA is is not best here because it treats each observation as an independent observation but can not account for the randomness from sampling the same location. 
+#Each sampling plot is measured for GHG monthly over 1 year (n=12). 
+
+#First I want to compare the randomness to parameters that I think might be influencing the response variable. In this case I want to know if hydrology, distance from the inlet, or season influence method production 
+
+ch4.lm1 <- lmer(log.ch4 ~ (1|sampleid) , data=ghg, REML=FALSE)
+
+ch4.lm2 <- lmer(log.ch4~hydrology + (1|sampleid), data=ghg, REML=TRUE)
+
+ch4.lm3 <- lmer(log.ch4~distance.bin + (1|sampleid), data=ghg, REML=FALSE)
+
+ch4.lm4 <- lmer(log.ch4~hydrology+ distance.bin + (1|sampleid), data=ghg, REML=FALSE)
+
+ch4.lm5 <- lmer(log.ch4~season+ (1|sampleid), data=ghg, REML=FALSE)
+
+ch4.lm6 <- lmer(log.ch4~hydrology+ season+ (1|sampleid), data=ghg, REML=FALSE)
+
+ch4.lm7 <- lmer(log.ch4~distance.bin+ season+ (1|sampleid), data=ghg, REML=FALSE)
+
+ch4.lm8 <- lmer(log.ch4~hydrology+ distance.bin + season + (1|sampleid), data=ghg, REML=FALSE)
+
+#This is a liklihood ratio test to get Chi squared value and p-value
+anova(ch4.lm1, ch4.lm2, ch4.lm3,ch4.lm4,ch4.lm5, ch4.lm6, ch4.lm7, ch4.lm8)
+
+#My conclusion is that hyrdology is the main factor influencing methane rates within the wetland
+
+```
+
+```{r model comparisions no log}
+
+ch4.lm1 <- lmer(ch4cmgm2hr ~ (1|sampleid) , data=ghg, REML=FALSE)
+
+ch4.lm2 <- lmer(ch4cmgm2hr~hydrology + (1|sampleid), data=ghg, REML=TRUE)
+
+ch4.lm3 <- lmer(ch4cmgm2hr~distance.bin + (1|sampleid), data=ghg, REML=FALSE)
+
+ch4.lm4 <- lmer(ch4cmgm2hr~hydrology+ distance.bin + (1|sampleid), data=ghg, REML=FALSE)
+
+ch4.lm5 <- lmer(ch4cmgm2hr~season+ (1|sampleid), data=ghg, REML=FALSE)
+
+ch4.lm6 <- lmer(ch4cmgm2hr~hydrology+ season+ (1|sampleid), data=ghg, REML=FALSE)
+
+ch4.lm7 <- lmer(ch4cmgm2hr~distance.bin+ season+ (1|sampleid), data=ghg, REML=FALSE)
+
+ch4.lm8 <- lmer(ch4cmgm2hr~hydrology+ distance.bin + season + (1|sampleid), data=ghg, REML=FALSE)
+
+#This is a liklihood ratio test to get Chi squared value and p-value
+anova(ch4.lm1, ch4.lm2, ch4.lm3,ch4.lm4,ch4.lm5, ch4.lm6, ch4.lm7, ch4.lm8)
+```
+
+
+###STOPPED HERE
+```{r soil_sediment parameters}
+#First sediment parameters. There are GHG fluxes and sediment properties for 4 timepoints (May, Aug, Oct, Dec)
+#Filter ghg dataset to include only sampling points with soil variables
+ghg.soil <- ghg %>%
+  filter(date=="5/18/2017" | date=="7/26/2017" | date=="10/18/2017" | date=="12/14/2017")
+
+#Remove correlated variables first.... fix subsetting
+cor(ghg.soil[,-c(1:30)])
+correlation()
+```
+
 ```{r CH4 by season, echo=T, out.width="100%"}
 #linear model for methane
 i <- with(ghg, interaction(hydrology,season))
-ghg.lm <- lm(ch4cgm2day~hydrology+season+i,data=ghg)
+ghg.lm <- aov(log10(ch4cmgm2day)~hydrology+season+i,data=ghg)
 plot(ghg.lm)
 anova(ghg.lm)
-summary(ghg.lm)
 
-t <- HSD.test(ghg.lm, "i", group=TRUE, alpha=0.0)
+t <- HSD.test(ghg.lm, "i", group=TRUE, alpha=0.05)
 t
 plot(t)
 
 #boxplots
-p <- ggplot(ghg, aes(x=season, y=ch4cgm2day, color=season, shape=hydrology)) + geom_boxplot() +
+p <- ggplot(ghg, aes(x=season, y=log10(ch4cmgm2day), color=season, shape=hydrology)) + geom_boxplot() +
   geom_point(aes(color=factor(season)), size=2, position = position_jitterdodge()) +
   scale_color_manual(name="Season", values=colseason, labels = season_label) +     
   scale_shape_manual(name="Hydrology", values=c(17,21), labels = hydro_label) +      
   scale_x_discrete(labels=season_label,limits=c("sp", "sm", "f", "w")) + 
-  labs(x = "Season", y = (expression(paste("CH"[4], " (g C"," m"^-{2}," day"^-{1},")")))) +
+  labs(x = "Season", y = (expression(paste("log CH"[4], " (mg C"," m"^-{2}," day"^-{1},")")))) +
   ggtitle("Seasonal Methane Fluxes") +
   #set Tukey groups from HSD.test above
-  annotate("text",x=1.2,y=2.5, label="b") +
-  annotate("text",x=2.2,y=1.5, label="b") +
-  annotate("text",x=3.2,y=1.5, label="b") +
-  annotate("text",x=4.2,y=1.5, label="b") +
-  annotate("text",x=0.8,y=7, label="ab") +
+  annotate("text",x=1.2,y=2.5, label="c") +
+  annotate("text",x=2.2,y=1.5, label="c") +
+  annotate("text",x=3.2,y=1.5, label="c") +
+  annotate("text",x=4.2,y=1.5, label="c") +
+  annotate("text",x=0.8,y=7, label="bc") +
   annotate("text",x=1.8,y=10, label="a") + 
-  annotate("text",x=2.8,y=10, label="ab") + 
-  annotate("text",x=3.8,y=9, label="ab") + 
+  annotate("text",x=2.8,y=10, label="b") + 
+  annotate("text",x=3.8,y=9, label="bc") + 
   #set plot design
   theme_bw() + 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line =   
@@ -125,12 +288,11 @@ ggsave("../figures/CH4bySeason.jpg", plot=last_plot(), device=NULL, path=NULL, s
 ```{r CO2 by season, echo=T, out.width="100%"}
 #linear model for methane
 i <- with(ghg, interaction(hydrology,season))
-ghg.lm <- lm(co2cgm2day~hydrology+season+i,data=ghg)
+ghg.lm <- aov(co2cgm2day~hydrology+season+i,data=ghg)
 plot(ghg.lm)
 anova(ghg.lm)
-summary(ghg.lm)
 
-t <- HSD.test(ghg.lm, "i", group=TRUE, alpha=0.01)
+t <- HSD.test(ghg.lm, "i", group=TRUE, alpha=0.05)
 t
 plot(t)
 
@@ -164,12 +326,11 @@ ggsave("../figures/CO2bySeason.jpg", plot=last_plot(), device=NULL, path=NULL, s
 ```{r N2O by season, echo=T, out.width="100%"}
 #linear model for methane
 i <- with(ghg, interaction(hydrology,season))
-ghg.lm <- lm(n2ongm2day~hydrology+season+i,data=ghg)
+ghg.lm <- aov(n2ongm2day~hydrology+season+i,data=ghg)
 plot(ghg.lm)
 anova(ghg.lm)
-summary(ghg.lm)
 
-t <- HSD.test(ghg.lm, "i", group=TRUE, alpha=0.01)
+t <- HSD.test(ghg.lm, "i", group=TRUE, alpha=0.05)
 t
 plot(t)
 
@@ -181,14 +342,14 @@ p <- ggplot(ghg, aes(x=season, y=n2ongm2day, color=season, shape=hydrology)) + g
   labs(x = "Season", y = (expression(paste("N"[2],"O", " (g C"," m"^-{2}," day"^-{1},")")))) +
   ggtitle("Seasonal Nitrous Oxide Fluxes") +
   #set Tukey groups from HSD.test above
-  annotate("text",x=0.8,y=0.005, label="b") +
-  annotate("text",x=1.8,y=0.008, label="b") +
-  annotate("text",x=2.8,y=0.005, label="b") +
-  annotate("text",x=3.8,y=0.009, label="b") +
-  annotate("text",x=1.2,y=0.005, label="b") +
-  annotate("text",x=2.2,y=0.007, label="a") + 
-  annotate("text",x=3.2,y=0.005, label="b") + 
-  annotate("text",x=4.2,y=0.005, label="b") + 
+  #annotate("text",x=0.8,y=0.005, label="b") +
+  #annotate("text",x=1.8,y=0.008, label="b") +
+  #annotate("text",x=2.8,y=0.005, label="b") +
+  #annotate("text",x=3.8,y=0.009, label="b") +
+  #annotate("text",x=1.2,y=0.005, label="b") +
+  #annotate("text",x=2.2,y=0.007, label="a") + 
+  #annotate("text",x=3.2,y=0.005, label="b") + 
+  #annotate("text",x=4.2,y=0.005, label="b") + 
   #set plot design
   theme_bw() + 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line =   
@@ -200,12 +361,74 @@ p
 ggsave("../figures/N2ObySeason.jpg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6, height=4, dpi=300, limitsize=TRUE)
 ```
 
+
+
+
+```{r }
+#Which environmental parameters help explain ghg production?
+#Have monthly water values that correspond to PI chambers 1w-5w
+#Have sediment values for 4 timepoints (May, Aug, Oct, Dec)
+
+#I log used the log to help with normality
+require(nlme)
+ghg$logch4 <- log(ghg$ch4cmgm2day)
+ch4.lm <- lm(logch4~hydrology*season, random=~1|sampleid/hydrology, data=ghg)
+plot(ch4.lm)
+anova(ch4.lm)
+summary(ch4.lm)
+
+ch4.lm <- lm(logch4~hydrology*season+distance.m+num.days.last.rain.+water.depth.cm, random=~1|sampleid/hydrology, data=ghg)
+plot(ch4.lm)
+anova(ch4.lm)
+summary(ch4.lm)
+
+require(car)
+outlierTest(ch4.lm)
+leveragePlots(ch4.lm)
+
+# Normality of Residuals
+# qq plot for studentized resid
+qqPlot(ch4.lm, main="QQ Plot")
+# distribution of studentized residuals
+require(MASS)
+sresid <- studres(ch4.lm)
+hist(sresid, freq=FALSE,
+   main="Distribution of Studentized Residuals")
+xfit<-seq(min(sresid),max(sresid),length=40)
+yfit<-dnorm(xfit)
+lines(xfit, yfit) 
+
+
+
+```
+
+
+```{r }
+
+#Maybe methane and carbon dixoide are highly corrleated especially in flooded plots
+g <- ggplot(aes(x=ch4cgm2day, y=co2cgm2day, color = hydrology), data=ghg) +
+  geom_point()+
+  geom_smooth()
+
+ghg.filter <- ghg %>%
+  filter(hydrology=="PI")
+
+corr_spearman <- cor.test(x=ghg.filter$ch4cgm2day, y=ghg.filter$co2cgm2day, method = 'spearman')
+corr_spearman 
+corr_kendall <- corr <- cor.test(x=ghg.filter$ch4cgm2day, y=ghg.filter$co2cgm2day, method = 'kendall')
+corr_kendall
+corr_pearson <- corr <- cor.test(x=ghg.filter$ch4cgm2day, y=ghg.filter$co2cgm2day, method = 'pearson')
+corr_pearson
+
+```
+
+
 ```{r CO2:CH4  by season, echo=T, out.width="100%"}
 #linear model for methane
 #remove outlier spring co2_ch4 >8000
-ghg.ratio <- subset(ghg, co2_ch4<60000)
+ghg.ratio <- subset(ghg, co2_ch4<6000)
 i <- with(ghg.ratio, interaction(hydrology,season))
-ghg.lm <- lm(co2_ch4~hydrology+season+i,data=ghg.ratio)
+ghg.lm <- aov(co2_ch4~hydrology+season+i,data=ghg.ratio)
 plot(ghg.lm)
 anova(ghg.lm)
 #i <- with(ghg, interaction(hydrology,season))
@@ -221,9 +444,9 @@ plot(t)
 
 p <- ggplot(ghg.ratio, aes(x=season, y=co2_ch4, color=season, shape=hydrology))+ geom_boxplot() +
   geom_point(aes(color=factor(season)), size=2, position = position_jitterdodge()) +  
-  scale_color_manual(name="Season", values=colseason, labels = season) +     
+  scale_color_manual(name="Season", values=colseason, labels = season_label) +     
   scale_shape_manual(name="Hydrology", values=c(17,21), labels = hydro_label) +      
-  scale_x_discrete(labels=season,limits=c("sp", "sm", "f", "w")) + 
+  scale_x_discrete(labels=season_label,limits=c("sp", "sm", "f", "w")) + 
   labs(x = "Season", y = (expression(paste("CO"[2],": CH"[4])))) +
   ggtitle("Seasonal carbon dioxide:methane ratio") +
 
