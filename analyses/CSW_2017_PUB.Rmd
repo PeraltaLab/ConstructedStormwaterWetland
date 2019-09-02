@@ -52,7 +52,8 @@ se <- function(x, ...) {
 ci <- function(x, ...) {
   1.96 * sd(x, na.rm = TRUE)
 }
-
+cbrt<- function(x) { sign(x) * abs(x)^1/3 
+  }
 set.seed(42)
 
 ```
@@ -88,7 +89,7 @@ season_label <- c("sp" = "spring", "sm" = "summer", "f" = "fall", "w" = "winter"
 colseason <- c("brown","orange","green4","navyblue") #changed color order follows f, sm, sp, w
 ```
 
-```{r GHG_CH4 summary}
+```{r GHG summary}
 #I want to know if hydrology, season, distance.m (from inlet to outlet), or num.days.last.rain has the greatest influence on CH4, CO2, and N2O fluxes from the wetland
 
 #Coverted distance.m to categorical factor, it is the same each sampling
@@ -126,7 +127,7 @@ ggplot(aes(x=sampleid, y=ch4cmgm2hr, color=hydrology), data=ghg)+
   geom_violin(trim=FALSE) +
   facet_grid(~season)
 #sqrt seems to unsquish them bit
-ggplot(aes(x=sampleid, y=sqrt(ch4cmgm2hr), color=hydrology), data=ghg)+
+ggplot(aes(x=sampleid, y=cbrt(ch4cmgm2hr), color=hydrology), data=ghg)+
   geom_violin(trim=FALSE)+
   facet_grid(~season)
 #maybe boxplots are not so bad in this case?
@@ -161,7 +162,7 @@ shapiro.test(resid(ch4.lm))
 
 #Since dataset still not normal... going to try log by first adding a constant to deal with < 0 values
 m <- min(ghg$ch4cmgm2hr)
-ghg$log.ch4 <- log(1+ m + ghg$ch4cmgm2hr)
+ghg$log.ch4 <- log(1 - m + ghg$ch4cmgm2hr)
 
 ch4.lm <- lmer(log.ch4~(1|sampleid), data=ghg, REML=TRUE)
 summary(ch4.lm, ddf="Kenward-Roger")
@@ -186,27 +187,45 @@ shapiro.test(resid(ch4.lm))
 #Each sampling plot is measured for GHG monthly over 1 year (n=12). 
 
 #First I want to compare the randomness to parameters that I think might be influencing the response variable. In this case I want to know if hydrology, distance from the inlet, or season influence method production 
+require("blme")
 
-ch4.lm1 <- lmer(log.ch4 ~ (1|sampleid) , data=ghg, REML=FALSE)
+ch4.lm1 <- blmer(log.ch4 ~ (1|sampleid) , data=ghg, REML=FALSE)
 
-ch4.lm2 <- lmer(log.ch4~hydrology + (1|sampleid), data=ghg, REML=TRUE)
+ch4.lm2 <- blmer(log.ch4~hydrology + (1|sampleid), data=ghg, REML=TRUE)
 
-ch4.lm3 <- lmer(log.ch4~distance.bin + (1|sampleid), data=ghg, REML=FALSE)
+ch4.lm3 <- blmer(log.ch4~distance.bin + (1|sampleid), data=ghg, REML=FALSE)
 
-ch4.lm4 <- lmer(log.ch4~hydrology+ distance.bin + (1|sampleid), data=ghg, REML=FALSE)
+ch4.lm4 <- blmer(log.ch4~hydrology * distance.bin + (1|sampleid), data=ghg, REML=FALSE)
 
-ch4.lm5 <- lmer(log.ch4~season+ (1|sampleid), data=ghg, REML=FALSE)
+ch4.lm5 <- blmer(log.ch4~season+ (1|sampleid), data=ghg, REML=FALSE)
 
-ch4.lm6 <- lmer(log.ch4~hydrology+ season+ (1|sampleid), data=ghg, REML=FALSE)
+ch4.lm6 <- blmer(log.ch4~hydrology * season+ (1|sampleid), data=ghg, REML=FALSE)
 
-ch4.lm7 <- lmer(log.ch4~distance.bin+ season+ (1|sampleid), data=ghg, REML=FALSE)
+ch4.lm7 <- blmer(log.ch4~distance.bin * season+ (1|sampleid), data=ghg, REML=FALSE)
 
-ch4.lm8 <- lmer(log.ch4~hydrology+ distance.bin + season + (1|sampleid), data=ghg, REML=FALSE)
+ch4.lm8 <- blmer(log.ch4~hydrology * distance.bin * season + (1|sampleid), data=ghg, REML=FALSE)
 
 #This is a liklihood ratio test to get Chi squared value and p-value
 anova(ch4.lm1, ch4.lm2, ch4.lm3,ch4.lm4,ch4.lm5, ch4.lm6, ch4.lm7, ch4.lm8)
 
 #My conclusion is that hyrdology is the main factor influencing methane rates within the wetland
+
+#confint 0
+summary(ch4.lm2, ddf="Kenward-Roger")
+confint(ch4.lm2)
+p=profile(ch4.lm2)
+xyplot(p)
+densityplot(p)
+qqPlot(resid(ch4.lm2), main="QQ Plot")
+shapiro.test(resid(ch4.lm2))
+
+#Post hoc Tests
+#Estimated marginal means - similar to lsmeans, uses t distribution
+require("emmeans")
+  emmeans(ch4.lm6, list(hydrology ~ season), adjust = "tukey")
+#Uses z distribution, tends to output smaller p values with smaller datasets
+require("multcomp")
+  summary(glht(ch4.lm2, linfct=mcp(hydrology="Tukey")))
 
 ```
 
@@ -233,9 +252,223 @@ anova(ch4.lm1, ch4.lm2, ch4.lm3,ch4.lm4,ch4.lm5, ch4.lm6, ch4.lm7, ch4.lm8)
 ```
 
 
-###STOPPED HERE
 
-```{}
+```{r CO2 Quick visualization} 
+ggplot(aes(x=sampleid, y=co2cmgm2hr, color=hydrology), data=ghg)+
+  geom_violin(trim=FALSE) +
+  facet_grid(~season)
+#sqrt seems to unsquish them bit
+ggplot(aes(x=sampleid, y=cbrt(co2cmgm2hr), color=hydrology), data=ghg)+
+  geom_violin(trim=FALSE)+
+  facet_grid(~season)
+#maybe boxplots are not so bad in this case?
+ggplot(aes(x=sampleid, y=co2cmgm2hr, color=hydrology), data=ghg)+
+  geom_boxplot()+
+  facet_grid(~season)
+ggplot(aes(x=sampleid, y=co2cmgm2hr, color=hydrology), data=ghg)+
+  geom_boxplot()
+```
+
+```{r CO2 Do we have normaility?}
+#First check the distibution of residuals --- not so great
+co2.lm <- lmer(co2cmgm2hr~(1|sampleid), data=ghg, REML=TRUE)
+summary(co2.lm, ddf="Kenward-Roger")
+confint(co2.lm)
+p=profile(co2.lm)
+xyplot(p)
+densityplot(p)
+qqPlot(resid(co2.lm), main="QQ Plot")
+shapiro.test(resid(co2.lm))
+
+#Try cuberoot - works with negative values
+#This decreased variance in random effects, CI not 0, but still not normal or is it? 
+co2.lm <- lmer((co2cmgm2hr)^(1/3)~(1|sampleid), data=ghg, REML=TRUE)
+summary(co2.lm, ddf="Kenward-Roger")
+confint(co2.lm)
+p=profile(co2.lm)
+xyplot(p)
+densityplot(p)
+qqPlot(resid(co2.lm), main="QQ Plot")
+shapiro.test(resid(co2.lm))
+
+#Since dataset still not normal... going to try log by first adding a constant to deal with < 0 values
+m <- min(ghg$co2cmgm2hr)
+ghg$log.co2 <- log(2 - m + ghg$co2cmgm2hr)
+
+co2.lm <- lmer(log.co2~(1|sampleid), data=ghg, REML=TRUE)
+summary(co2.lm, ddf="Kenward-Roger")
+confint(co2.lm)
+p=profile(co2.lm)
+xyplot(p)
+densityplot(p)
+qqPlot(resid(co2.lm), main="QQ Plot")
+shapiro.test(resid(co2.lm))
+
+###Not sure if logging helped. Looks like one of diagnostics is better and one is worse. I will run models with both and see what happens
+
+#boxcox for scaling best transformation
+#This tells you what lambda value to scale data too
+#Keep getting error. Think needs to be lm instead...
+
+```
+```{r Hypothesis testing log}
+#Which factor/s (Hydrology, season, distance.bin) help explain GHG production?
+
+#ANOVA is is not best here because it treats each observation as an independent observation but can not account for the randomness from sampling the same location. 
+#Each sampling plot is measured for GHG monthly over 1 year (n=12). 
+
+#First I want to compare the randomness to parameters that I think might be influencing the response variable. In this case I want to know if hydrology, distance from the inlet, or season influence method production 
+require("blme")
+
+co2.lm1 <- blmer(log.co2 ~ (1|sampleid) , data=ghg, REML=FALSE)
+
+co2.lm2 <- blmer(log.co2~hydrology + (1|sampleid), data=ghg, REML=TRUE)
+
+co2.lm3 <- blmer(log.co2~distance.bin + (1|sampleid), data=ghg, REML=FALSE)
+
+co2.lm4 <- blmer(log.co2~hydrology * distance.bin + (1|sampleid), data=ghg, REML=FALSE)
+
+co2.lm5 <- blmer(log.co2~season+ (1|sampleid), data=ghg, REML=FALSE)
+
+co2.lm6 <- blmer(log.co2~hydrology * season+ (1|sampleid), data=ghg, REML=FALSE)
+
+co2.lm7 <- blmer(log.co2~distance.bin * season+ (1|sampleid), data=ghg, REML=FALSE)
+
+co2.lm8 <- blmer(log.co2~hydrology * distance.bin * season + (1|sampleid), data=ghg, REML=FALSE)
+
+#This is a liklihood ratio test to get Chi squared value and p-value
+anova(co2.lm1, co2.lm2, co2.lm3,co2.lm4,co2.lm5, co2.lm6, co2.lm7, co2.lm8)
+
+#My conclusion is that hyrdology is the main factor influencing methane rates within the wetland
+
+#confint 0
+summary(co2.lm2, ddf="Kenward-Roger")
+confint(co2.lm2)
+p=profile(co2.lm2)
+xyplot(p)
+densityplot(p)
+qqPlot(resid(co2.lm2), main="QQ Plot")
+shapiro.test(resid(co2.lm2))
+
+#Post hoc Tests
+#Estimated marginal means - similar to lsmeans, uses t distribution
+require("emmeans")
+  emmeans(co2.lm6, list(hydrology ~ season), adjust = "tukey")
+#Uses z distribution, tends to output smaller p values with smaller datasets
+require("multcomp")
+  summary(glht(co2.lm2, linfct=mcp(hydrology="Tukey")))
+```
+
+
+```{r n2on Quick visualization} 
+ggplot(aes(x=sampleid, y=n2onmgm2hr, color=hydrology), data=ghg)+
+  geom_violin(trim=FALSE) +
+  facet_grid(~season)
+#sqrt seems to unsquish them bit
+ggplot(aes(x=sampleid, y=(n2onmgm2hr)^(1/3), color=hydrology), data=ghg)+
+  geom_violin(trim=FALSE)+
+  facet_grid(~season)
+#maybe boxplots are not so bad in this case?
+ggplot(aes(x=sampleid, y=n2onmgm2hr, color=hydrology), data=ghg)+
+  geom_boxplot()+
+  facet_grid(~season)
+ggplot(aes(x=sampleid, y=n2onmgm2hr, color=hydrology), data=ghg)+
+  geom_boxplot()
+```
+
+```{r n2on Do we have normaility?}
+#First check the distibution of residuals --- not so great
+n2on.lm <- lmer(n2onmgm2hr~(1|sampleid), data=ghg, REML=TRUE)
+summary(n2on.lm, ddf="Kenward-Roger")
+confint(n2on.lm)
+p=profile(n2on.lm)
+xyplot(p)
+densityplot(p)
+qqPlot(resid(n2on.lm), main="QQ Plot")
+shapiro.test(resid(n2on.lm))
+
+#Try cuberoot - works with negative values
+#This decreased variance in random effects, CI not 0, but still not normal or is it? 
+
+c.n2on <- cbrt(ghg$n2onmgm2hr)
+n2on.lm <- lmer(((n2onmgm2hr)^(1/3))~(1|sampleid), data=ghg, REML=TRUE)
+summary(n2on.lm, ddf="Kenward-Roger")
+confint(n2on.lm)
+p=profile(n2on.lm)
+xyplot(p)
+densityplot(p)
+qqPlot(resid(n2on.lm), main="QQ Plot")
+shapiro.test(resid(n2on.lm))
+
+#Since dataset still not normal... going to try log by first adding a constant to deal with < 0 values
+m <- min(ghg$n2onmgm2hr)
+ghg$log.n2on <- log(2 - m + ghg$n2onmgm2hr)
+
+n2on.lm <- lmer(log.n2on~(1|sampleid), data=ghg, REML=TRUE)
+summary(n2on.lm, ddf="Kenward-Roger")
+confint(n2on.lm)
+p=profile(n2on.lm)
+xyplot(p)
+densityplot(p)
+qqPlot(resid(n2on.lm), main="QQ Plot")
+shapiro.test(resid(n2on.lm))
+
+###Not sure if logging helped. Looks like one of diagnostics is better and one is worse. I will run models with both and see what happens
+
+#boxcox for scaling best transformation
+#This tells you what lambda value to scale data too
+#Keep getting error. Think needs to be lm instead...
+
+```
+```{r Hypothesis testing log}
+#Which factor/s (Hydrology, season, distance.bin) help explain GHG production?
+
+#ANOVA is is not best here because it treats each observation as an independent observation but can not account for the randomness from sampling the same location. 
+#Each sampling plot is measured for GHG monthly over 1 year (n=12). 
+
+#First I want to compare the randomness to parameters that I think might be influencing the response variable. In this case I want to know if hydrology, distance from the inlet, or season influence method production 
+require("blme")
+
+n2on.lm1 <- blmer(log.n2on ~ (1|sampleid) , data=ghg, REML=FALSE)
+
+n2on.lm2 <- blmer(log.n2on~hydrology + (1|sampleid), data=ghg, REML=TRUE)
+
+n2on.lm3 <- blmer(log.n2on~distance.bin + (1|sampleid), data=ghg, REML=FALSE)
+
+n2on.lm4 <- blmer(log.n2on~hydrology * distance.bin + (1|sampleid), data=ghg, REML=FALSE)
+
+n2on.lm5 <- blmer(log.n2on~season+ (1|sampleid), data=ghg, REML=FALSE)
+
+n2on.lm6 <- blmer(log.n2on~hydrology * season+ (1|sampleid), data=ghg, REML=FALSE)
+
+n2on.lm7 <- blmer(log.n2on~distance.bin * season+ (1|sampleid), data=ghg, REML=FALSE)
+
+n2on.lm8 <- blmer(log.n2on~hydrology * distance.bin * season + (1|sampleid), data=ghg, REML=FALSE)
+
+#This is a liklihood ratio test to get Chi squared value and p-value
+anova(n2on.lm1, n2on.lm2, n2on.lm3,n2on.lm4,n2on.lm5, n2on.lm6, n2on.lm7, n2on.lm8)
+
+#My conclusion is that hyrdology is the main factor influencing methane rates within the wetland
+
+#confint 0
+summary(n2on.lm2, ddf="Kenward-Roger")
+confint(n2on.lm2)
+p=profile(n2on.lm2)
+xyplot(p)
+densityplot(p)
+qqPlot(resid(n2on.lm2), main="QQ Plot")
+shapiro.test(resid(n2on.lm2))
+
+#Post hoc Tests
+#Estimated marginal means - similar to lsmeans, uses t distribution
+require("emmeans")
+  emmeans(n2on.lm4, list(hydrology ~ distance.bin), adjust = "tukey")
+#Uses z distribution, tends to output smaller p values with smaller datasets
+require("multcomp")
+  summary(glht(n2on.lm2, linfct=mcp(hydrology="Tukey")))
+
+```
+
 
 ```{r soil_sediment parameters}
 #First sediment parameters. There are GHG fluxes and sediment properties for 4 timepoints (May, Aug, Oct, Dec)
