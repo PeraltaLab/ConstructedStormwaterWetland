@@ -31,7 +31,6 @@ source("../bin/MothurTools.R")
 #load requires packages
 require("ggplot2")
 require("psych")
-require("dplyr")
 require("tidyverse")
 require("agricolae")
 require("vegan")
@@ -42,6 +41,8 @@ require("lme4")
 require("car")
 require("MASS")
 require("lindia")
+require("blme")
+require("dbstats")
 
 #BiocManager::install("phyloseq")
 
@@ -76,15 +77,15 @@ ghg <- cbind(ghg, design)
 
 #Add calculated fields
 ghg <- mutate(ghg, 
-      co2ch4=ghg$ch4cmgm2day/ghg$co2cmgm2day, #ch4:co2 ratio   
-      ch4co2eq=ghg$ch4cmgm2day*25, #methane carbon dioxide equivalents
-      n2oco2eq=ghg$n2onmgm2day*298 #nitrous oxide carbon dixode equivalents
+      co2ch4=ghg$ch4cmgm2hr/ghg$co2cmgm2hr, #ch4:co2 ratio   
+      ch4co2eq=ghg$ch4cmgm2hr*25, #methane carbon dioxide equivalents
+      n2oco2eq=ghg$n2onmgm2hr*298 #nitrous oxide carbon dixode equivalents
       )
 ```
 
 ```{r plot formatting}
 colman <- c("blue","chartreuse4")
-hydro_label <- c("flooded wetland", "upland")
+hydro_label <- c("flooded", "shallow land")
 season_label <- c("sp" = "spring", "sm" = "summer", "f" = "fall", "w" = "winter")
 colseason <- c("brown","orange","green4","navyblue") #changed color order follows f, sm, sp, w
 ```
@@ -98,31 +99,41 @@ colseason <- c("brown","orange","green4","navyblue") #changed color order follow
 #Quick Data Summary
 ghg.summary <- ghg %>%
   group_by(hydrology)%>%
-  dplyr::summarise(mean_ch4cmgm2hr=mean(ch4cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_co2cmgm2hr=mean(co2cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_n2onmgm2hr=mean(n2onmgm2hr), sd_n2onmgm2hr=sd(n2onmgm2hr))
+  dplyr::summarise(mean_ch4cmgm2hr=mean(ch4cmgm2hr), sd_ch4cmgm2hr=sd(ch4cmgm2hr),mean_co2cmgm2hr=mean(co2cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_n2onmgm2hr=mean(n2onmgm2hr), sd_n2onmgm2hr=sd(n2onmgm2hr))
 
 ghg.summary
 
 ghg.summary <- ghg %>%
   group_by(hydrology, num.days.last.rain)%>%
-  dplyr::summarise(mean_ch4cmgm2hr=mean(ch4cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_co2cmgm2hr=mean(co2cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_n2onmgm2hr=mean(n2onmgm2hr), sd_n2onmgm2hr=sd(n2onmgm2hr))
+  dplyr::summarise(mean_ch4cmgm2hr=mean(ch4cmgm2hr), sd_ch4cmgm2hr=sd(ch4cmgm2hr),mean_co2cmgm2hr=mean(co2cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_n2onmgm2hr=mean(n2onmgm2hr), sd_n2onmgm2hr=sd(n2onmgm2hr))
 
 ghg.summary
 
 ghg.summary <- ghg %>%
   group_by(hydrology, distance.bin)%>%
-  dplyr::summarise(mean_ch4cmgm2hr=mean(ch4cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_co2cmgm2hr=mean(co2cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_n2onmgm2hr=mean(n2onmgm2hr), sd_n2onmgm2hr=sd(n2onmgm2hr))
+  dplyr::summarise(mean_ch4cmgm2hr=mean(ch4cmgm2hr), sd_ch4cmgm2hr=sd(ch4cmgm2hr),mean_co2cmgm2hr=mean(co2cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_n2onmgm2hr=mean(n2onmgm2hr), sd_n2onmgm2hr=sd(n2onmgm2hr))
 
 ghg.summary
 
 ghg.summary <- ghg %>%
   group_by(hydrology, season)%>%
-  dplyr::summarise(mean_ch4cmgm2hr=mean(ch4cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_co2cmgm2hr=mean(co2cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_n2onmgm2hr=mean(n2onmgm2hr), sd_n2onmgm2hr=sd(n2onmgm2hr))
+  dplyr::summarise(mean_ch4cmgm2hr=mean(ch4cmgm2hr), sd_ch4cmgm2hr=sd(ch4cmgm2hr),mean_co2cmgm2hr=mean(co2cmgm2hr), sd_co2cmgm2hr=sd(co2cmgm2hr),mean_n2onmgm2hr=mean(n2onmgm2hr), sd_n2onmgm2hr=sd(n2onmgm2hr))
 
 ghg.summary
+
+#CH4
+min(ghg$ch4cmgm2hr)
+max(ghg$ch4cmgm2hr)
+#CO2
+min(ghg$co2cmgm2hr)
+max(ghg$co2cmgm2hr)
+#N2O
+min(ghg$n2onmgm2hr)
+max(ghg$n2onmgm2hr)
+
 ```
 ```{r CH4 Quick visualization} 
 #Mike suggested violin plots so I gave it a go and they were very squished
-#####Why are they so squished? 
 ggplot(aes(x=sampleid, y=ch4cmgm2hr, color=hydrology), data=ghg)+
   geom_violin(trim=FALSE) +
   facet_grid(~season)
@@ -150,8 +161,9 @@ qqPlot(resid(ch4.lm), main="QQ Plot")
 shapiro.test(resid(ch4.lm))
 
 #Try cuberoot - works with negative values
-#This decreased variance in random effects, CI not 0, but still not normal or is it? 
-ch4.lm <- lmer((ch4cmgm2hr)^(1/3)~(1|sampleid), data=ghg, REML=TRUE)
+ghg$cbrt.ch4 <- cbrt(ghg$ch4cmgm2hr)
+
+ch4.lm <- lmer(cbrt.ch4~(1|sampleid), data=ghg, REML=TRUE)
 summary(ch4.lm, ddf="Kenward-Roger")
 confint(ch4.lm)
 p=profile(ch4.lm)
@@ -162,7 +174,7 @@ shapiro.test(resid(ch4.lm))
 
 #Since dataset still not normal... going to try log by first adding a constant to deal with < 0 values
 m <- min(ghg$ch4cmgm2hr)
-ghg$log.ch4 <- log(1 - m + ghg$ch4cmgm2hr)
+ghg$log.ch4 <- sign(ghg$ch4cmgm2hr) * log(1 - m + ghg$ch4cmgm2hr)
 
 ch4.lm <- lmer(log.ch4~(1|sampleid), data=ghg, REML=TRUE)
 summary(ch4.lm, ddf="Kenward-Roger")
@@ -173,11 +185,29 @@ densityplot(p)
 qqPlot(resid(ch4.lm), main="QQ Plot")
 shapiro.test(resid(ch4.lm))
 
-###Not sure if logging helped. Looks like one of diagnostics is better and one is worse. I will run models with both and see what happens
+ghg$log.cb.ch4 <- log(abs(ghg$ch4cmgm2hr)^(1/3))
 
-#boxcox for scaling best transformation
+ch4.lm <- lmer(log.cb.ch4~(1|sampleid), data=ghg, REML=TRUE)
+summary(ch4.lm, ddf="Kenward-Roger")
+confint(ch4.lm)
+p=profile(ch4.lm)
+xyplot(p)
+densityplot(p)
+qqPlot(resid(ch4.lm), main="QQ Plot")
+shapiro.test(resid(ch4.lm))
+
+#boxcox when non-normality is presistant
+ghg$bc.ch4 <- boxCoxVariable(abs(ghg$ch4cmgm2hr))
+ch4.lm <- lmer(bc.ch4~(1|sampleid), data=ghg, REML=TRUE)
+summary(ch4.lm, ddf="Kenward-Roger")
+confint(ch4.lm)
+p=profile(ch4.lm)
+xyplot(p)
+densityplot(p)
+qqPlot(resid(ch4.lm), main="QQ Plot")
+shapiro.test(resid(ch4.lm))
 #This tells you what lambda value to scale data too
-#Keep getting error. Think needs to be lm instead...
+#Keep getting error. Think issue with negatvie values
 
 ```
 ```{r Hypothesis testing log}
@@ -187,45 +217,49 @@ shapiro.test(resid(ch4.lm))
 #Each sampling plot is measured for GHG monthly over 1 year (n=12). 
 
 #First I want to compare the randomness to parameters that I think might be influencing the response variable. In this case I want to know if hydrology, distance from the inlet, or season influence method production 
-require("blme")
 
-ch4.lm1 <- blmer(log.ch4 ~ (1|sampleid) , data=ghg, REML=FALSE)
+ch4.lm1 <- lmer(log.cb.ch4 ~ (1|sampleid) , data=ghg, REML=FALSE)
 
-ch4.lm2 <- blmer(log.ch4~hydrology + (1|sampleid), data=ghg, REML=TRUE)
+ch4.lm2 <- lmer(log.cb.ch4~hydrology + (1|sampleid), data=ghg, REML=TRUE)
 
-ch4.lm3 <- blmer(log.ch4~distance.bin + (1|sampleid), data=ghg, REML=FALSE)
+ch4.lm3 <- lmer(log.cb.ch4~distance.bin + (1|sampleid), data=ghg, REML=FALSE)
 
-ch4.lm4 <- blmer(log.ch4~hydrology * distance.bin + (1|sampleid), data=ghg, REML=FALSE)
+ch4.lm4 <- lmer(log.cb.ch4~hydrology * distance.bin + (1|sampleid), data=ghg, REML=FALSE)
 
-ch4.lm5 <- blmer(log.ch4~season+ (1|sampleid), data=ghg, REML=FALSE)
+ch4.lm5 <- lmer(log.cb.ch4~season+ (1|sampleid), data=ghg, REML=FALSE)
 
-ch4.lm6 <- blmer(log.ch4~hydrology * season+ (1|sampleid), data=ghg, REML=FALSE)
+ch4.lm6 <- lmer(log.cb.ch4~hydrology * season + (1|sampleid), data=ghg, REML=FALSE)
 
-ch4.lm7 <- blmer(log.ch4~distance.bin * season+ (1|sampleid), data=ghg, REML=FALSE)
+ch4.lm7 <- lmer(log.cb.ch4~distance.bin * season+ (1|sampleid), data=ghg, REML=FALSE)
 
-ch4.lm8 <- blmer(log.ch4~hydrology * distance.bin * season + (1|sampleid), data=ghg, REML=FALSE)
+ch4.lm8 <- lmer(log.cb.ch4~hydrology * distance.bin * season + (1|sampleid), data=ghg, REML=FALSE)
 
 #This is a liklihood ratio test to get Chi squared value and p-value
 anova(ch4.lm1, ch4.lm2, ch4.lm3,ch4.lm4,ch4.lm5, ch4.lm6, ch4.lm7, ch4.lm8)
 
 #My conclusion is that hyrdology is the main factor influencing methane rates within the wetland
 
-#confint 0
-summary(ch4.lm2, ddf="Kenward-Roger")
-confint(ch4.lm2)
-p=profile(ch4.lm2)
+summary(ch4.lm6, ddf="Kenward-Roger")
+confint(ch4.lm6)
+p=profile(ch4.lm6)
 xyplot(p)
 densityplot(p)
-qqPlot(resid(ch4.lm2), main="QQ Plot")
-shapiro.test(resid(ch4.lm2))
+qqPlot(resid(ch4.lm6), main="QQ Plot")
+shapiro.test(resid(ch4.lm6))
 
 #Post hoc Tests
 #Estimated marginal means - similar to lsmeans, uses t distribution
+#https://cran.rstudio.com/web/packages/emmeans/vignettes/interactions.html
 require("emmeans")
-  emmeans(ch4.lm6, list(hydrology ~ season), adjust = "tukey")
+  emm <- emmeans(ch4.lm6, ~hydrology * season, adjust = "tukey")
+  p <-contrast(emm, "consec", simple="each", combine =TRUE, adjust="mvt")
+  p
 #Uses z distribution, tends to output smaller p values with smaller datasets
-require("multcomp")
-  summary(glht(ch4.lm2, linfct=mcp(hydrology="Tukey")))
+####I was not able to get this to work
+#require("multcomp")
+#  ghg$hxs <- interaction(ghg$hydrology, ghg$season)
+#  s <- glht(ch4.lm6, linfct=mcp(hxs='Tukey'))
+#  summary(s)
 
 ```
 
@@ -279,10 +313,37 @@ xyplot(p)
 densityplot(p)
 qqPlot(resid(co2.lm), main="QQ Plot")
 shapiro.test(resid(co2.lm))
+#Not too bad but 77 looks like an outlier
+#Remove 77
+ghg.77 <- ghg[-c(77),]
+#check resdiuals now
+co2.lm <- lmer(co2cmgm2hr~(1|sampleid), data=ghg.77, REML=TRUE)
+summary(co2.lm, ddf="Kenward-Roger")
+confint(co2.lm)
+p=profile(co2.lm)
+xyplot(p)
+densityplot(p)
+qqPlot(resid(co2.lm), main="QQ Plot")
+shapiro.test(resid(co2.lm))
+#Not that much better
 
+#Ok try square root first 
+ghg$sqrt.co2 <- (sign(ghg$co2cmgm2hr) * sqrt(abs(ghg$co2cmgm2hr)))
+
+co2.lm <- lmer(sqrt.co2~(1|sampleid), data=ghg, REML=TRUE)
+summary(co2.lm, ddf="Kenward-Roger")
+confint(co2.lm)
+p=profile(co2.lm)
+xyplot(p)
+densityplot(p)
+qqPlot(resid(co2.lm), main="QQ Plot")
+shapiro.test(resid(co2.lm))
+#this is a lot better. but the xyplot is still a little off
+
+ghg$cbrt.co2 <- cbrt(ghg$co2cmgm2hr)
 #Try cuberoot - works with negative values
 #This decreased variance in random effects, CI not 0, but still not normal or is it? 
-co2.lm <- lmer((co2cmgm2hr)^(1/3)~(1|sampleid), data=ghg, REML=TRUE)
+co2.lm <- lmer(cbrt.co2~(1|sampleid), data=ghg, REML=TRUE)
 summary(co2.lm, ddf="Kenward-Roger")
 confint(co2.lm)
 p=profile(co2.lm)
@@ -293,7 +354,7 @@ shapiro.test(resid(co2.lm))
 
 #Since dataset still not normal... going to try log by first adding a constant to deal with < 0 values
 m <- min(ghg$co2cmgm2hr)
-ghg$log.co2 <- log(2 - m + ghg$co2cmgm2hr)
+ghg$log.co2 <- sign(ghg$co2cmgm2hr) * log(1 - m + ghg$co2cmgm2hr)
 
 co2.lm <- lmer(log.co2~(1|sampleid), data=ghg, REML=TRUE)
 summary(co2.lm, ddf="Kenward-Roger")
@@ -304,59 +365,82 @@ densityplot(p)
 qqPlot(resid(co2.lm), main="QQ Plot")
 shapiro.test(resid(co2.lm))
 
-###Not sure if logging helped. Looks like one of diagnostics is better and one is worse. I will run models with both and see what happens
+m <- min(ghg$sqrt.co2)
+ghg$log.sqrt.co2 <- sign(ghg$sqrt.co2) * log(1 - m + ghg$sqrt.co2)
 
-#boxcox for scaling best transformation
-#This tells you what lambda value to scale data too
-#Keep getting error. Think needs to be lm instead...
+co2.lm <- lmer(log.sqrt.co2~(1|sampleid), data=ghg, REML=TRUE)
+summary(co2.lm, ddf="Kenward-Roger")
+confint(co2.lm)
+p=profile(co2.lm)
+xyplot(p)
+densityplot(p)
+qqPlot(resid(co2.lm), main="QQ Plot")
+shapiro.test(resid(co2.lm))
+
+#boxcox when non-normality is presistant
+ghg$bc.ch4 <- boxCoxVariable(abs(ghg$ch4cmgm2hr))
+ch4.lm <- lmer(bc.ch4~(1|sampleid), data=ghg, REML=TRUE)
+summary(ch4.lm, ddf="Kenward-Roger")
+confint(ch4.lm)
+p=profile(ch4.lm)
+xyplot(p)
+densityplot(p)
+qqPlot(resid(ch4.lm), main="QQ Plot")
+shapiro.test(resid(ch4.lm))
+
+ghg$log.cb.co2 <- log(abs(cbrt(ghg$co2cmgm2hr)^(1/3)))
+
+n2on.lm <- lmer(log.cb.co2~(1|sampleid), data=ghg, REML=TRUE)
+summary(n2on.lm, ddf="Kenward-Roger")
+confint(n2on.lm)
+p=profile(n2on.lm)
+xyplot(p)
+densityplot(p)
+qqPlot(resid(n2on.lm), main="QQ Plot")
+shapiro.test(resid(n2on.lm))
 
 ```
 ```{r Hypothesis testing log}
 #Which factor/s (Hydrology, season, distance.bin) help explain GHG production?
 
-#ANOVA is is not best here because it treats each observation as an independent observation but can not account for the randomness from sampling the same location. 
-#Each sampling plot is measured for GHG monthly over 1 year (n=12). 
-
 #First I want to compare the randomness to parameters that I think might be influencing the response variable. In this case I want to know if hydrology, distance from the inlet, or season influence method production 
-require("blme")
+co2.lm1 <- lmer(log.cb.co2 ~ (1|sampleid) , data=ghg, REML=FALSE)
 
-co2.lm1 <- blmer(log.co2 ~ (1|sampleid) , data=ghg, REML=FALSE)
+co2.lm2 <- lmer(log.cb.co2~hydrology + (1|sampleid), data=ghg, REML=TRUE)
 
-co2.lm2 <- blmer(log.co2~hydrology + (1|sampleid), data=ghg, REML=TRUE)
+co2.lm3 <- lmer(log.cb.co2~distance.bin + (1|sampleid), data=ghg, REML=FALSE)
 
-co2.lm3 <- blmer(log.co2~distance.bin + (1|sampleid), data=ghg, REML=FALSE)
+co2.lm4 <- lmer(log.cb.co2~hydrology * distance.bin + (1|sampleid), data=ghg, REML=FALSE)
 
-co2.lm4 <- blmer(log.co2~hydrology * distance.bin + (1|sampleid), data=ghg, REML=FALSE)
+co2.lm5 <- lmer(log.cb.co2~season+ (1|sampleid), data=ghg, REML=FALSE)
 
-co2.lm5 <- blmer(log.co2~season+ (1|sampleid), data=ghg, REML=FALSE)
+co2.lm6 <- lmer(log.cb.co2~hydrology * season+ (1|sampleid), data=ghg, REML=FALSE)
 
-co2.lm6 <- blmer(log.co2~hydrology * season+ (1|sampleid), data=ghg, REML=FALSE)
+co2.lm7 <- lmer(log.cb.co2~distance.bin * season+ (1|sampleid), data=ghg, REML=FALSE)
 
-co2.lm7 <- blmer(log.co2~distance.bin * season+ (1|sampleid), data=ghg, REML=FALSE)
-
-co2.lm8 <- blmer(log.co2~hydrology * distance.bin * season + (1|sampleid), data=ghg, REML=FALSE)
+co2.lm8 <- lmer(log.cb.co2~hydrology * distance.bin * season + (1|sampleid), data=ghg, REML=FALSE)
 
 #This is a liklihood ratio test to get Chi squared value and p-value
 anova(co2.lm1, co2.lm2, co2.lm3,co2.lm4,co2.lm5, co2.lm6, co2.lm7, co2.lm8)
+#Large chi square test stat means data does not fit well, small chi data fits well
 
 #My conclusion is that hyrdology is the main factor influencing methane rates within the wetland
 
-#confint 0
-summary(co2.lm2, ddf="Kenward-Roger")
-confint(co2.lm2)
-p=profile(co2.lm2)
+summary(co2.lm6, ddf="Kenward-Roger")
+confint(co2.lm6)
+p=profile(co2.lm6)
 xyplot(p)
 densityplot(p)
-qqPlot(resid(co2.lm2), main="QQ Plot")
-shapiro.test(resid(co2.lm2))
+qqPlot(resid(co2.lm6), main="QQ Plot")
+shapiro.test(resid(co2.lm6))
+
 
 #Post hoc Tests
 #Estimated marginal means - similar to lsmeans, uses t distribution
-require("emmeans")
-  emmeans(co2.lm6, list(hydrology ~ season), adjust = "tukey")
-#Uses z distribution, tends to output smaller p values with smaller datasets
-require("multcomp")
-  summary(glht(co2.lm2, linfct=mcp(hydrology="Tukey")))
+  emm <- emmeans(co2.lm6, ~hydrology * season, adjust = "tukey")
+  p <-contrast(emm, "consec", simple="each", combine =TRUE, adjust="mvt")
+  p
+
 ```
 
 
@@ -387,11 +471,10 @@ densityplot(p)
 qqPlot(resid(n2on.lm), main="QQ Plot")
 shapiro.test(resid(n2on.lm))
 
-#Try cuberoot - works with negative values
-#This decreased variance in random effects, CI not 0, but still not normal or is it? 
+ghg$sqrt.n2o <- (sign(ghg$n2onmgm2hr) * (sqrt(abs(ghg$n2onmgm2hr))))
 
-c.n2on <- cbrt(ghg$n2onmgm2hr)
-n2on.lm <- lmer(((n2onmgm2hr)^(1/3))~(1|sampleid), data=ghg, REML=TRUE)
+#Try square root first
+n2on.lm <- lmer(sqrt.n2o~(1|sampleid), data=ghg, REML=TRUE)
 summary(n2on.lm, ddf="Kenward-Roger")
 confint(n2on.lm)
 p=profile(n2on.lm)
@@ -400,11 +483,10 @@ densityplot(p)
 qqPlot(resid(n2on.lm), main="QQ Plot")
 shapiro.test(resid(n2on.lm))
 
-#Since dataset still not normal... going to try log by first adding a constant to deal with < 0 values
-m <- min(ghg$n2onmgm2hr)
-ghg$log.n2on <- log(2 - m + ghg$n2onmgm2hr)
+ghg$cbrt.n2o <- cbrt(ghg$n2onmgm2hr)
 
-n2on.lm <- lmer(log.n2on~(1|sampleid), data=ghg, REML=TRUE)
+#Try square root first
+n2on.lm <- lmer(cbrt.n2o~(1|sampleid), data=ghg, REML=TRUE)
 summary(n2on.lm, ddf="Kenward-Roger")
 confint(n2on.lm)
 p=profile(n2on.lm)
@@ -413,11 +495,16 @@ densityplot(p)
 qqPlot(resid(n2on.lm), main="QQ Plot")
 shapiro.test(resid(n2on.lm))
 
-###Not sure if logging helped. Looks like one of diagnostics is better and one is worse. I will run models with both and see what happens
+ghg$log.cb.n2o <- log(abs(ghg$n2onmgm2hr)^(1/3))
 
-#boxcox for scaling best transformation
-#This tells you what lambda value to scale data too
-#Keep getting error. Think needs to be lm instead...
+n2on.lm <- lmer(log.cb.n2o~(1|sampleid), data=ghg, REML=TRUE)
+summary(n2on.lm, ddf="Kenward-Roger")
+confint(n2on.lm)
+p=profile(n2on.lm)
+xyplot(p)
+densityplot(p)
+qqPlot(resid(n2on.lm), main="QQ Plot")
+shapiro.test(resid(n2on.lm))
 
 ```
 ```{r Hypothesis testing log}
@@ -426,31 +513,28 @@ shapiro.test(resid(n2on.lm))
 #ANOVA is is not best here because it treats each observation as an independent observation but can not account for the randomness from sampling the same location. 
 #Each sampling plot is measured for GHG monthly over 1 year (n=12). 
 
-#First I want to compare the randomness to parameters that I think might be influencing the response variable. In this case I want to know if hydrology, distance from the inlet, or season influence method production 
-require("blme")
+#First I want to compare the randomness to parameters that I think might be influencing the response variable. In this case I want to know if hydrology, distance from the inlet, or season influence method production
+n2on.lm1 <- lmer(sqrt.n2o ~ (1|sampleid) , data=ghg, REML=FALSE)
 
-n2on.lm1 <- blmer(log.n2on ~ (1|sampleid) , data=ghg, REML=FALSE)
+n2on.lm2 <- lmer(sqrt.n2o~hydrology + (1|sampleid), data=ghg, REML=TRUE)
 
-n2on.lm2 <- blmer(log.n2on~hydrology + (1|sampleid), data=ghg, REML=TRUE)
+n2on.lm3 <- lmer(sqrt.n2o~distance.bin + (1|sampleid), data=ghg, REML=FALSE)
 
-n2on.lm3 <- blmer(log.n2on~distance.bin + (1|sampleid), data=ghg, REML=FALSE)
+n2on.lm4 <- lmer(sqrt.n2o~hydrology * distance.bin + (1|sampleid), data=ghg, REML=FALSE)
 
-n2on.lm4 <- blmer(log.n2on~hydrology * distance.bin + (1|sampleid), data=ghg, REML=FALSE)
+n2on.lm5 <- lmer(sqrt.n2o~season+ (1|sampleid), data=ghg, REML=FALSE)
 
-n2on.lm5 <- blmer(log.n2on~season+ (1|sampleid), data=ghg, REML=FALSE)
+n2on.lm6 <- lmer(sqrt.n2o~hydrology * season+ (1|sampleid), data=ghg, REML=FALSE)
 
-n2on.lm6 <- blmer(log.n2on~hydrology * season+ (1|sampleid), data=ghg, REML=FALSE)
+n2on.lm7 <- lmer(sqrt.n2o~distance.bin * season+ (1|sampleid), data=ghg, REML=FALSE)
 
-n2on.lm7 <- blmer(log.n2on~distance.bin * season+ (1|sampleid), data=ghg, REML=FALSE)
-
-n2on.lm8 <- blmer(log.n2on~hydrology * distance.bin * season + (1|sampleid), data=ghg, REML=FALSE)
+n2on.lm8 <- lmer(sqrt.n2o~hydrology * distance.bin * season + (1|sampleid), data=ghg, REML=FALSE)
 
 #This is a liklihood ratio test to get Chi squared value and p-value
 anova(n2on.lm1, n2on.lm2, n2on.lm3,n2on.lm4,n2on.lm5, n2on.lm6, n2on.lm7, n2on.lm8)
 
 #My conclusion is that hyrdology is the main factor influencing methane rates within the wetland
 
-#confint 0
 summary(n2on.lm2, ddf="Kenward-Roger")
 confint(n2on.lm2)
 p=profile(n2on.lm2)
@@ -459,14 +543,38 @@ densityplot(p)
 qqPlot(resid(n2on.lm2), main="QQ Plot")
 shapiro.test(resid(n2on.lm2))
 
+n2on.lm1 <- lmer(log.cb.n2o ~ (1|sampleid) , data=ghg, REML=FALSE)
+
+n2on.lm2 <- lmer(log.cb.n2o~hydrology + (1|sampleid), data=ghg, REML=TRUE)
+
+n2on.lm3 <- lmer(log.cb.n2o~distance.bin + (1|sampleid), data=ghg, REML=FALSE)
+
+n2on.lm4 <- lmer(log.cb.n2o~hydrology * distance.bin + (1|sampleid), data=ghg, REML=FALSE)
+
+n2on.lm5 <- lmer(log.cb.n2o~season+ (1|sampleid), data=ghg, REML=FALSE)
+
+n2on.lm6 <- lmer(log.cb.n2o~hydrology * season+ (1|sampleid), data=ghg, REML=FALSE)
+
+n2on.lm7 <- lmer(log.cb.n2o~distance.bin * season+ (1|sampleid), data=ghg, REML=FALSE)
+
+n2on.lm8 <- lmer(log.cb.n2o~hydrology * distance.bin * season + (1|sampleid), data=ghg, REML=FALSE)
+
+#This is a liklihood ratio test to get Chi squared value and p-value
+anova(n2on.lm1, n2on.lm2, n2on.lm3,n2on.lm4,n2on.lm5, n2on.lm6, n2on.lm7, n2on.lm8)
+
+summary(n2on.lm5, ddf="Kenward-Roger")
+confint(n2on.lm5)
+p=profile(n2on.lm5)
+xyplot(p)
+densityplot(p)
+qqPlot(resid(n2on.lm5), main="QQ Plot")
+shapiro.test(resid(n2on.lm5))
+
 #Post hoc Tests
 #Estimated marginal means - similar to lsmeans, uses t distribution
-require("emmeans")
-  emmeans(n2on.lm4, list(hydrology ~ distance.bin), adjust = "tukey")
-#Uses z distribution, tends to output smaller p values with smaller datasets
-require("multcomp")
-  summary(glht(n2on.lm2, linfct=mcp(hydrology="Tukey")))
-
+  emm <- emmeans(n2on.lm5, ~season, adjust = "tukey")
+  p <-contrast(emm, "consec", simple="each", combine =TRUE, adjust="mvt")
+  p
 ```
 
 
@@ -477,38 +585,31 @@ ghg.soil <- ghg %>%
   filter(date=="5/18/2017" | date=="7/26/2017" | date=="10/18/2017" | date=="12/14/2017")
 
 #Remove correlated variables first.... fix subsetting
-cor(ghg.soil[,-c(1:30)])
+#Look for pairings close to 1 and remove...
+cor(ghg.soil[,-c(1:28, 30:31, 41:56)])
 correlation()
+##Remove c.percent and n.percent. Correlates well with each otehr and the organic matter
+
 ```
 
 ```{r CH4 by season, echo=T, out.width="100%"}
-#linear model for methane
-i <- with(ghg, interaction(hydrology,season))
-ghg.lm <- aov(log10(ch4cmgm2day)~hydrology+season+i,data=ghg)
-plot(ghg.lm)
-anova(ghg.lm)
-
-t <- HSD.test(ghg.lm, "i", group=TRUE, alpha=0.05)
-t
-plot(t)
-
 #boxplots
-p <- ggplot(ghg, aes(x=season, y=log10(ch4cmgm2day), color=season, shape=hydrology)) + geom_boxplot() +
+p <- ggplot(ghg, aes(x=season, y=ch4cmgm2hr, color=season, shape=hydrology)) + geom_boxplot() +
   geom_point(aes(color=factor(season)), size=2, position = position_jitterdodge()) +
   scale_color_manual(name="Season", values=colseason, labels = season_label) +     
-  scale_shape_manual(name="Hydrology", values=c(17,21), labels = hydro_label) +      
+  scale_shape_manual(name="Hydrology", values=c(17,21), labels = hydro_label) +       
   scale_x_discrete(labels=season_label,limits=c("sp", "sm", "f", "w")) + 
-  labs(x = "Season", y = (expression(paste("log CH"[4], " (mg C"," m"^-{2}," day"^-{1},")")))) +
+  labs(x = "Season", y = (expression(paste("CH"[4], " (mg C"," m"^-{2}," hr"^-{1},")")))) +
   ggtitle("Seasonal Methane Fluxes") +
   #set Tukey groups from HSD.test above
-  annotate("text",x=1.2,y=2.5, label="c") +
-  annotate("text",x=2.2,y=1.5, label="c") +
-  annotate("text",x=3.2,y=1.5, label="c") +
-  annotate("text",x=4.2,y=1.5, label="c") +
-  annotate("text",x=0.8,y=7, label="bc") +
-  annotate("text",x=1.8,y=10, label="a") + 
-  annotate("text",x=2.8,y=10, label="b") + 
-  annotate("text",x=3.8,y=9, label="bc") + 
+  #annotate("text",x=1.2,y=2.5, label="c") +
+  #annotate("text",x=2.2,y=1.5, label="c") +
+  #annotate("text",x=3.2,y=1.5, label="c") +
+  #annotate("text",x=4.2,y=1.5, label="c") +
+  #annotate("text",x=0.8,y=7, label="bc") +
+  #annotate("text",x=1.8,y=10, label="a") + 
+  #annotate("text",x=2.8,y=10, label="b") + 
+  #annotate("text",x=3.8,y=9, label="bc") + 
   #set plot design
   theme_bw() + 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line =   
@@ -521,32 +622,23 @@ ggsave("../figures/CH4bySeason.jpg", plot=last_plot(), device=NULL, path=NULL, s
 ```
 
 ```{r CO2 by season, echo=T, out.width="100%"}
-#linear model for methane
-i <- with(ghg, interaction(hydrology,season))
-ghg.lm <- aov(co2cgm2day~hydrology+season+i,data=ghg)
-plot(ghg.lm)
-anova(ghg.lm)
 
-t <- HSD.test(ghg.lm, "i", group=TRUE, alpha=0.05)
-t
-plot(t)
-
-p <- ggplot(ghg, aes(x=season, y=co2cgm2day, color=season, shape=hydrology)) + geom_boxplot() +
+p <- ggplot(ghg, aes(x=season, y=co2cmgm2hr, color=season, shape=hydrology)) + geom_boxplot() +
   geom_point(aes(color=factor(season)), size=2, position = position_jitterdodge()) +
   scale_color_manual(name="Season", values=colseason, labels = season_label) +     
   scale_shape_manual(name="Hydrology", values=c(17,21), labels = hydro_label) +      
   scale_x_discrete(labels=season_label,limits=c("sp", "sm", "f", "w")) + 
-  labs(x = "Season", y = (expression(paste("CO"[2], " (g C"," m"^-{2}," day"^-{1},")")))) +
+  labs(x = "Season", y = (expression(paste("CO"[2], " (mg C"," m"^-{2}," hr"^-{1},")")))) +
   ggtitle("Seasonal Carbon Dioxide Fluxes") +
   #set Tukey groups from HSD.test above
-  annotate("text",x=0.8,y=5, label="b") +
-  annotate("text",x=1.2,y=4, label="b") +
-  annotate("text",x=1.8,y=8, label="a") + 
-  annotate("text",x=2.2,y=4, label="b") +
-  annotate("text",x=2.8,y=4.2, label="b") +
-  annotate("text",x=3.2,y=4.2, label="b") + 
-  annotate("text",x=3.8,y=4.2, label="b") +
-  annotate("text",x=4.2,y=4.2, label="b") + 
+  #annotate("text",x=0.8,y=5, label="b") +
+  #annotate("text",x=1.2,y=4, label="b") +
+  #annotate("text",x=1.8,y=8, label="a") + 
+  #annotate("text",x=2.2,y=4, label="b") +
+  #annotate("text",x=2.8,y=4.2, label="b") +
+  #annotate("text",x=3.2,y=4.2, label="b") + 
+  #annotate("text",x=3.8,y=4.2, label="b") +
+  #annotate("text",x=4.2,y=4.2, label="b") + 
   #set plot design
   theme_bw() + 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line =   
@@ -559,22 +651,13 @@ ggsave("../figures/CO2bySeason.jpg", plot=last_plot(), device=NULL, path=NULL, s
 ```
 
 ```{r N2O by season, echo=T, out.width="100%"}
-#linear model for methane
-i <- with(ghg, interaction(hydrology,season))
-ghg.lm <- aov(n2ongm2day~hydrology+season+i,data=ghg)
-plot(ghg.lm)
-anova(ghg.lm)
 
-t <- HSD.test(ghg.lm, "i", group=TRUE, alpha=0.05)
-t
-plot(t)
-
-p <- ggplot(ghg, aes(x=season, y=n2ongm2day, color=season, shape=hydrology)) + geom_boxplot() +
+p <- ggplot(ghg, aes(x=season, y=n2onmgm2hr, color=season, shape=hydrology)) + geom_boxplot() +
   geom_point(aes(color=factor(season)), size=2, position = position_jitterdodge()) + 
   scale_color_manual(name="Season", values=colseason, labels = season_label) +     
   scale_shape_manual(name="Hydrology", values=c(17,21), labels = hydro_label) +      
   scale_x_discrete(labels=season_label,limits=c("sp", "sm", "f", "w")) + 
-  labs(x = "Season", y = (expression(paste("N"[2],"O", " (g C"," m"^-{2}," day"^-{1},")")))) +
+  labs(x = "Season", y = (expression(paste("N"[2],"O", " (mg N"," m"^-{2}," hr"^-{1},")")))) +
   ggtitle("Seasonal Nitrous Oxide Fluxes") +
   #set Tukey groups from HSD.test above
   #annotate("text",x=0.8,y=0.005, label="b") +
@@ -598,44 +681,6 @@ ggsave("../figures/N2ObySeason.jpg", plot=last_plot(), device=NULL, path=NULL, s
 
 
 
-
-```{r }
-#Which environmental parameters help explain ghg production?
-#Have monthly water values that correspond to PI chambers 1w-5w
-#Have sediment values for 4 timepoints (May, Aug, Oct, Dec)
-
-#I log used the log to help with normality
-require(nlme)
-ghg$logch4 <- log(ghg$ch4cmgm2day)
-ch4.lm <- lm(logch4~hydrology*season, random=~1|sampleid/hydrology, data=ghg)
-plot(ch4.lm)
-anova(ch4.lm)
-summary(ch4.lm)
-
-ch4.lm <- lm(logch4~hydrology*season+distance.m+num.days.last.rain.+water.depth.cm, random=~1|sampleid/hydrology, data=ghg)
-plot(ch4.lm)
-anova(ch4.lm)
-summary(ch4.lm)
-
-require(car)
-outlierTest(ch4.lm)
-leveragePlots(ch4.lm)
-
-# Normality of Residuals
-# qq plot for studentized resid
-qqPlot(ch4.lm, main="QQ Plot")
-# distribution of studentized residuals
-require(MASS)
-sresid <- studres(ch4.lm)
-hist(sresid, freq=FALSE,
-   main="Distribution of Studentized Residuals")
-xfit<-seq(min(sresid),max(sresid),length=40)
-yfit<-dnorm(xfit)
-lines(xfit, yfit) 
-
-
-
-```
 
 
 ```{r }
@@ -711,7 +756,7 @@ tax <- read.tax(taxonomy = "../data/csw2017.opti_mcc.0.03.cons_withArchaea.taxon
 #read.tax does not work and I was unable to solve issue. I use phyloseq import_mothur as a work around. #there was no 'bin' folder with MothurTools
 #tax <- import_mothur(mothur_constaxonomy_file =  taxfile)
 tax.df <- as.data.frame(tax)
-colnames(tax.df)=c("Domain","Phylum","Class", "Order","Family","Genus")
+colnames(tax.df)=c("otu","Domain","Phylum","Class", "Order","Family","Genus")
 tax <- tax_table(tax.df)
 #tax
 
@@ -770,7 +815,7 @@ metaotu <- cbind(meta, otu.2.rel)
 
 #PERMANOVA with plant and Treatment as factors
 #Among all treatments plant (soil source) and treatment
-metaotu.ad <- adonis(metaotu[,-c(1:5)] ~treatment*season, method = "bray", data = metaotu, perm=1000, set.seed=42)
+metaotu.ad <- adonis(metaotu[,-c(1:4)] ~treatment*season, method = "bray", data = metaotu, perm=1000, set.seed=42)
 metaotu.ad 
 
 ```
@@ -778,6 +823,8 @@ metaotu.ad
 ```{r Calculate distance matrix and PCoA components }
 
 otu.2.rel.dist<-vegdist(otu.2.rel, method="bray")
+
+head(otu.2.rel.dist)
 
 # Principal Coordinates Analysis
 otu.2.rel.dist.pcoa <- cmdscale(otu.2.rel.dist, k=3, eig=TRUE, add=FALSE)
@@ -822,7 +869,7 @@ pcoa.cent.dataframe.trts$month <- as.factor(trt.month)
 pcoa.cent.dataframe.trts$location <- as.factor(trt.location)
 
 meta.env <- design %>% 
-dplyr::select(ddate, month,sampleid, hydrology, season, ph, om.percent, nh4n.mg.gdw, no3n.mg.gdw, c.percent, n.percent, c.n)%>%
+dplyr::select(ddate, month,sampleid, hydrology, season, moist.percent, ph, om.percent, nh4n.mg.gdw, no3n.mg.gdw, c.percent, n.percent, c.n)%>%
   filter(ddate=='5/16/2017' | ddate=='10/15/2017') %>%
   filter(sampleid %in% c('01W', '02W','03W', '04W','05W','07T', '08T','09T','11T', '12T', '13T'))
 
@@ -849,7 +896,7 @@ plot1 <- ggplot(df1a, aes(x=V1, y=V2,  color=location, shape = month),
 #removes gridlines from plot
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + 
 #Set colors for treatments
-  scale_colour_manual(labels = c("flooded wetland", "upland"), 
+  scale_colour_manual(labels = hydro_label, 
                     values = c("blue", "chartreuse4")) + 
   scale_shape_manual(labels = c("May", "October"), 
                    values = c(16,15)) +
@@ -876,6 +923,153 @@ plot1
 #Save a copy of the plot
 ggsave("../figures/CSW_PCoA.jpg", plot=last_plot(), device=NULL, path=NULL, scale=1, width=8.7, height=6.3, dpi=900, limitsize=TRUE)
 
+```
+
+```{r dbplsr analysis}
+#distance based partial least squares regression
+#Compares distance matrices. can use mixture of continuous and qualitative variables. 
+#Method good when factors are may and highly colinear. A PLS model find the multidimensional direction in the Z space that explains the vairance in the Y space. 
+
+#dbplsr(otu matrix, soil matrix)
+#To do this I think I neet to first restrict soil to motnhs and plots have bacterial data for 
+#Then create a euclidan distance matrix...
+#MAY, OCT 1W-5W, 7T-9T, 11T-13T
+ghg.soil.bac <- ghg %>%
+  filter(date=="5/18/2017" | date=="10/18/2017") %>%
+  filter(sampleid %in% c('01W', '02W','03W', '04W','05W','07T', '08T','09T','11T', '12T', '13T'))
+
+#Remove correlated variables first.... fix subsetting
+#Look for pairings close to 1 and remove...
+cor(ghg.soil.bac[,-c(1:28, 30:31, 35:36,41:57)])
+correlation(ghg.soil.bac[,-c(1:28, 30:31, 35:36,41:57)])
+
+ghg.soil.bac.filter <- ghg.soil.bac[,-c(1:9, 13:20, 26:28, 30:31, 34:35,38:39, 41:57)]
+ghg.soil.bac.filter 
+  
+#Filter in same order as otu distance matrix
+ghg.soil.bac.filter <- ghg.soil.bac.filter %>%
+    dplyr::arrange(sampleid, desc(month))
+
+
+#Are GHG 
+dbplsr.ch4 <- dbplsr(ghg.soil.bac.filter$ch4cmgm2hr ~ as.matrix(otu.2.rel.dist), data=ghg.soil.bac.filter , ncomp=3, method="GCV")
+summary(dbplsr.ch4)
+
+dbplsr.co2 <- dbplsr(ghg.soil.bac.filter$co2cmgm2hr ~ as.matrix(otu.2.rel.dist), data=ghg.soil.bac.filter , ncomp=3, method="GCV")
+summary(dbplsr.co2)
+
+dbplsr.n2o <- dbplsr(ghg.soil.bac.filter$n2onmgm2hr ~ as.matrix(otu.2.rel.dist), data=ghg.soil.bac.filter , ncomp=3, method="GCV")
+summary(dbplsr.n2o)
+
+#pls is similar to dbplsr but it was easy to get the scores and loadings although I am not totally sure on how to interpret 
+require("pls")
+dbplsr.n2o <- plsr(ghg.soil.bac.filter$ch4cmgm2hr ~ as.matrix(otu.2.rel.dist), data=ghg.soil.bac.filter , ncomp=6)
+summary(dbplsr.n2o)
+scores(dbplsr.n2o)
+loadings(dbplsr.n2o)
+###Some loadings are missing ... ?
+loadingplot(dbplsr.n2o, comps = 1:6, legendpos = "topright")
+biplot(dbplsr.n2o)
+
+# + scale(as.matrix(soil.dist))
+
+```
+
+```{r mantel soil and bac comm }
+
+soil.dist <- vegdist(x = scale(ghg.soil.bac.filter[, -c(1:8)]), "euclid")
+
+bac.soil.mantel <- mantel(as.matrix(soil.dist), as.matrix(otu.2.rel.dist), method="pearson", permutations=999)
+bac.soil.mantel
+
+```
+
+```{r Bacteria Indicator Species}
+#This produces a text file with otus for groups and p values
+#i <- interaction(new.data$treatment, new.data$month)
+new.data <-cbind(meta,otu.2.rel)
+library("labdsv")
+###treatment and month? 
+
+design.type <- new.data$treatment
+dataREL.2013 <- new.data[,-c(1:5)]
+#head(dataREL.2013)
+set.seed(42)
+#dataREL <- dataREL.2013
+###This sets abundance cutoff
+###Sensitive to abudnace cutoff
+dataREL <- dataREL.2013[, colSums(dataREL.2013) > 0.05]
+bac.ind <- indval(dataREL, clustering =  design.type, numitr=1000, set.seed(42))
+levels(design.type)
+design.type
+summary(bac.ind)
+
+###this sets p value cutoff
+inds <- which(bac.ind$pval <= 0.05)
+bac.indicators <- as.data.frame(matrix(NA, nrow = length(inds), ncol = 4))
+colnames(bac.indicators) <- c("OTU", "Cluster", "IndVal", "Prob")
+
+bac.indicators$OTU <- names(inds)
+bac.indicators$Cluster <- bac.ind$maxcls[inds]
+bac.indicators$IndVal <- bac.ind$indcls[inds]
+bac.indicators$Prob <- bac.ind$pval[inds]
+
+#need tax data
+
+otu.tax<-as.data.frame(tax)
+suffix<- 1:nrow(otu.tax)
+ps <- sprintf("Otu%05d",suffix)
+otu.tax$OTU<-ps
+
+ind.tax <- otu.tax[which(as.character(otu.tax$OTU) %in% bac.indicators$OTU), ]
+ind.tax <- ind.tax[match(ind.tax$OTU, bac.indicators$OTU), ]
+
+indicator.bac <- cbind(bac.indicators, ind.tax[, -c(1)])
+
+indicator.bac <- indicator.bac[order(as.numeric(indicator.bac$Cluster)), ]
+
+table(indicator.bac$Cluster)
+table(indicator.bac$Phylum)
+table(indicator.bac$Cluster)
+levels(design.type)
+
+# Export Bacteria Indicator Table
+write.table(indicator.bac, "../figures/BacterialIndicators_treatment_all.txt",
+            sep="\t", row.names = F, quote = F)
+
+```
+
+```{r heatmap of relative abundances}
+ra.heat <- metaotu %>%
+  gather(otu, "otu.cnt", -treatment, -season) %>%
+  mutate(otu.cnt = as.numeric(otu.cnt))%>%
+  filter(otu.cnt >= 0.005)
+
+ra.heat <- ra.heat[-c(1:44),]
+
+ra.heat.sum <- ra.heat %>%
+    group_by(treatment, season, otu) %>%
+    dplyr::summarise(avgAbund=mean(otu.cnt))%>%
+    left_join(tax.df, by="otu")
+
+#By plot?
+ind.tax.i.heat <- ggplot(ra.heat.sum, aes(Genus, treatment)) +
+  geom_tile(aes(fill = avgAbund), color="white") + 
+  scale_fill_gradientn(colors=c("khaki", "green", "blue", "black"))+#, limits=c(0.001,0.005), oob=scales::squish) +
+  scale_y_discrete(labels=c("flooded", "shallow land"))+
+  labs(fill = "", title="", x="", y="" )+
+  theme_bw()  +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+          axis.title.y=element_text(margin=margin(r=10)), 
+          axis.title.x=element_text(margin=margin(t=10))) +
+    theme(axis.title=element_text(vjust=1,size=16),
+          axis.text=element_text(size=14), axis.text.x = element_text(size=14))+
+    theme(legend.text=element_text(size=14), legend.title = element_text(size=14), 
+          legend.position = "right")+
+  coord_flip()
+ind.tax.i.heat
+
+ggsave("../figures/heatmap.jpg", plot=ind.tax.i.heat, device=NULL, path=NULL, scale=1, width=9, height=9, dpi=900, limitsize=TRUE)
 ```
 
 #DENITRIFICATION ENZYME ASSAY
@@ -964,336 +1158,6 @@ p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = el
 
 ggsave("../figures/DEApotential_location.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
 ```
-
-```{r load taxonomy data into phyloseq object}
-# Import otu and tax into phyloseq
-otu <- otu_table(t(otu.2), taxa_are_rows = T)
-#tax <- import_mothur(mothur_constaxonomy_file =  taxfile)
-#rownames(meta) <- meta$group
-sample <- sample_data(meta)
-#import into phyloseq
-phy<-phyloseq(otu,tax) #################################ERROR  
-  #invalid class “phyloseq” object: 
-  #Component taxa/OTU names do not match
-row.names(sample)=meta$Group
-sample_names(sample)
-#Assign rownames to be Sample ID's
-# Merge mothurdata object with sample metadata
-meta_merge <- merge_phyloseq(phy,sample_names)
-
-#meta_merge
-
-#assign column names
-colnames(tax_table(meta_merge))
-colnames(tax_table(meta_merge)) <- c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus")
-colnames(tax_table(meta_merge))
-rank_names(meta_merge)
-
-#Inspecting phyloseq object
-#sample_variables(meta_merge)
-#sample_names(meta_merge)
-#tax_table(meta_merge)[1:5, 2:6]
-
-treat_merge = merge_samples(meta_merge, sample(meta_merge)$treatment) 
-# error - Error in x[sample.int(length(x), size, replace, prob)] : 
-  #object of type 'S4' is not subsettable
-otu_table(treat_merge)[1:5,1:5]
-```
-
-```{r Bacteria Indicator Species}
-#This produces a text file with otus for groups and p values
-#i <- interaction(new.data$treatment, new.data$month)
-new.data <-cbind(meta,otu.2.rel)
-library("labdsv")
-###treatment and month? 
-
-design.type <- new.data$treatment
-dataREL.2013 <- new.data[,-c(1:5)]
-#head(dataREL.2013)
-set.seed(42)
-dataREL <- dataREL.2013[, colSums(dataREL.2013) > 0.05]
-bac.ind <- indval(dataREL, clustering =  design.type, numitr=1000, set.seed(42))
-levels(design.type)
-design.type
-summary(bac.ind)
-
-inds <- which(bac.ind$pval <= 0.05)
-bac.indicators <- as.data.frame(matrix(NA, nrow = length(inds), ncol = 4))
-colnames(bac.indicators) <- c("OTU", "Cluster", "IndVal", "Prob")
-
-bac.indicators$OTU <- names(inds)
-bac.indicators$Cluster <- bac.ind$maxcls[inds]
-bac.indicators$IndVal <- bac.ind$indcls[inds]
-bac.indicators$Prob <- bac.ind$pval[inds]
-
-#need tax data
-
-otu.tax<-as.data.frame(tax)
-suffix<- 1:nrow(otu.tax)
-ps <- sprintf("Otu%05d",suffix)
-otu.tax$OTU<-ps
-
-ind.tax <- otu.tax[which(as.character(otu.tax$OTU) %in% bac.indicators$OTU), ]
-ind.tax <- ind.tax[match(ind.tax$OTU, bac.indicators$OTU), ]
-
-indicator.bac <- cbind(bac.indicators, ind.tax[, -c(1)])
-
-indicator.bac <- indicator.bac[order(as.numeric(indicator.bac$Cluster)), ]
-
-table(indicator.bac$Cluster)
-table(indicator.bac$Phylum)
-table(indicator.bac$Cluster)
-levels(design.type)
-
-# Export Bacteria Indicator Table
-write.table(indicator.bac, "../figures/BacterialIndicators_treatment.txt",
-            sep="\t", row.names = F, quote = F)
-
-#From what I can tell by comparing both methods of indicator analysis the second "cluster" 1, 2, 3, ... is the design.type in alphabetical order. So 1 = avM, 2 = avMF, 3 = bulkM, 4 = bulkMF, 5 = ecM, 6=ecMF
-  
-```
-
-```{r phyloseq Phylum stacked graphs of taxa composition}
-
-# melt to long format (for ggploting) 
-# prune out phyla below 2% in each sample
-wrc_phylum <- treat_merge %>%
-  tax_glom(taxrank = "Phylum") %>%                     # agglomerate at phylum level
-  transform_sample_counts(function(x) {x/sum(x)} ) %>% # Transform to rel. abundance
-  psmelt() %>%                                         # Melt to long format
-  filter(Abundance > 0.01) %>%                        # Filter out low abundance taxa
-  arrange(Phylum)                                      # Sort data frame alphabetically by phylum
-
-# Set colors for plotting
-phylum_colors <- c("brown","orange", "blue", "red","yellow","purple")
-  
-  #c("#CBD588", "#5F7FC7","#DA5724", "#508578", "#CD9BCD",
-  # "#AD6F3B", "#673770","#D14285", "#652926", "#C84248", 
-  #"#8569D5", "#5E738F","#D1A33D", "#8A7C64", "#599861", "#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-
-# Plot 
-#s <- as.factor(wrc_phylum$Sample)
-#wrc_phylum$Sample <- ordered(s,levels=c("bulkM","avM", "ecM","bulkMF","avMF", "ecMF"))
-#s <- revalue(s, c("bulkM"="bulk unfertilized", "avM"="grass unfertilized", "ecM"="forb unfertilized","bulkMF"="bulk fertilized", "avMF"="grass fertilized", "ecMF"="forb fertilized"))
-#s <- mapvalues(s, from = c("bulkM","avM", "ecM","bulkMF","avMF", "ecMF"), to = c("bulk unfertilized","grass unfertilized", "forb unfertilized","bulk fertilized", "grass fertilized", "forb fertilized"))
-
-wrc_plot<- ggplot(wrc_phylum, aes(x = Phylum, y = Abundance, fill = as.factor(treatment))) + 
-  #facet_grid(Type ~ .) +
-  geom_bar(stat = "identity") +
-  scale_fill_manual(values = phylum_colors) +
-  # Remove x axis title
-  theme(axis.title.x = element_blank()) + 
-  guides(fill = guide_legend(reverse = TRUE, keywidth = 1, keyheight = 1)) +
-  ylab("Relative Abundance (Phyla > 1.0%) \n") +
-  ggtitle("Phylum Composition of Bacterial Communities By Site") 
-
-wrc_plot + coord_flip()
-
-ggsave(file="../figures/phylum_stack.pdf", width=9, height=9, dpi=300)
-
-```
-
-```{r phyloseq Class stacked graphs of taxa composition}
-# melt to long format (for ggploting) 
-# prune out phyla below 2% in each sample
-wrc_class <- treat_merge %>%
-  tax_glom(taxrank = "Class") %>%                     # agglomerate at phylum level
-  transform_sample_counts(function(x) {x/sum(x)} ) %>% # Transform to rel. abundance
-  psmelt() %>%                                         # Melt to long format
-  filter(Abundance > 0.01) %>%                        # Filter out low abundance taxa
-  arrange(Class)                                     # Sort data frame alphabetically by phylum
-
-wrc_class
-# Set colors for plotting
-class_colors <- c("brown","orange", "blue", "red","yellow","purple")
-  #c(
-  #"#CBD588", "#5F7FC7","#DA5724", "#508578", "#CD9BCD",
-  # "#AD6F3B", "#673770","#D14285", "#652926", "#C84248", 
-  #"#8569D5", "#5E738F","#D1A33D", "#8A7C64", "#599861", "#000000", "#E69F00", "#56B4E9", #"#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "green", "red", "yellow","tan", #"pink", "purple", "gray", "white", "339900","666699","996699","009966")
-
-# Plot 
-
-#s <- as.factor(wrc_class$Sample)
-#wrc_class$Sample <- ordered(s,levels=c("bulkM","avM", "ecM","bulkMF","avMF", "ecMF"))
-#t <- as.factor(wrc_class$plant)
-#wrc_class$plant <- ordered(t, levels=c("1","2","3"))
-#u <- as.factor(wrc_class$Treatment)
-#wrc_class$Treatment <- ordered(u, levels=c("1","2"))
-
-#t <- revalue(s, c("bulkM"="bulk unfertilized", "avM"="grass unfertilized", "ecM"="forb unfertilized","bulkMF"="bulk fertilized", "avMF"="grass fertilized", "ecMF"="forb fertilized"))
-#t <- mapvalues(s, from = c("bulkM","avM", "ecM","bulkMF","avMF", "ecMF"), to = c("bulk unfertilized","grass unfertilized", "forb unfertilized","bulk fertilized", "grass fertilized", "forb fertilized"))
-#t<-ordered(t,levels=c("bulk unfertilized","grass unfertilized", "forb unfertilized","bulk fertilized", "grass fertilized", "forb fertilized"))
-
-
-wrc_plot<- ggplot(wrc_class, aes(x = Class, y = Abundance, fill = as.factor(treatment))) + 
-  #facet_grid(plant ~ .) + 
-  geom_bar(stat = "identity", width=0.5) + #scale_fill_manual(values=c("#111111","#777777"))+
-  scale_fill_manual(values = class_colors) +
-  # Remove x axis title
- theme_bw()  +
-    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
-          axis.title.y=element_text(margin=margin(r=10)), 
-          axis.title.x=element_text(margin=margin(t=10)), panel.border =
-          element_rect(colour = "black",size=1)) + 
-    theme(axis.ticks.length=unit(0.3,"cm")) + 
-  #theme(axis.title=element_text(vjust=1,size=14,face="bold"),
-  #        axis.text=element_text(size=14), axis.text.x = element_text(size=14))+
-  ylab("Class Relative Abundance > 1.0%") +
-  xlab("Treatment") +
-  labs(fill="Treatment") +
-  ggtitle("Class Composition of Bacterial Communities") 
-
-wrc_plot + coord_flip() 
-
-ggsave(file="../figures/class_stack.pdf", width=9, height=9, dpi=300)
-
-wrc_class_o<-wrc_class[,c(2:3,23:25)]
-
-write.csv(wrc_class_o, file="class_composition.csv", row.names=TRUE)
-```
-
-```{r phyloseq Family stacked graphs of taxa composition}
-# melt to long format (for ggploting) 
-# prune out phyla below 1% in each sample
-wrc_family <- treat_merge %>%
-  tax_glom(taxrank = "Family") %>%                     # agglomerate at phylum level
-  transform_sample_counts(function(x) {x/sum(x)} ) %>% # Transform to rel. abundance
-  psmelt() %>%                                         # Melt to long format
-  filter(Abundance > 0.01)%>%#, Class == "Actinobacteria") %>%                        # Filter out low abundance taxa
-  arrange(Family)                                     # Sort data frame alphabetically by phylum
-
-# wrc_family
-# Set colors for plotting
-family_colors <- c("brown","orange", "blue", "red","yellow","purple")
-  #"#CBD588", "#5F7FC7","#DA5724", "#508578", "#CD9BCD",
-  # "#AD6F3B", "#673770","#D14285", "#652926", "#C84248", 
- #"#8569D5", "#5E738F","#D1A33D", "#8A7C64", "#599861", "#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "green", "red", "yellow","tan", "pink", "purple", "gray", "white", "339900","666699","996699","black"
-#)
-
-# Plot 
-
-#s <- as.factor(wrc_family$Sample)
-#t <- revalue(s, c("bulkM"="bulk unfertilized", "avM"="grass unfertilized", "ecM"="forb unfertilized","bulkMF"="bulk fertilized", "avMF"="grass fertilized", "ecMF"="forb fertilized"))
-#t <- mapvalues(s, from = c("bulkM","avM", "ecM","bulkMF","avMF", "ecMF"), to = c("bulk unfertilized","grass unfertilized", "forb unfertilized","bulk fertilized", "grass fertilized", "forb fertilized"))
-#t<-ordered(t,levels=c("bulk unfertilized","grass unfertilized", "forb unfertilized","bulk fertilized", "grass fertilized", "forb fertilized"))
-
-wrc_plot<- ggplot(wrc_family, aes(x = Family, y = Abundance, fill = as.factor(treatment))) + 
-  #facet_grid(Type ~ .) +
-  geom_bar(stat = "identity", width=0.5) +
-  scale_fill_manual(values = family_colors) +
-  # Remove x axis title
-  theme_bw()  +
-    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
-          axis.title.y=element_text(margin=margin(r=10)), 
-          axis.title.x=element_text(margin=margin(t=10)), panel.border =
-          element_rect(colour = "black",size=1)) + 
-    theme(axis.ticks.length=unit(0.3,"cm")) + 
-  guides(fill = guide_legend(keywidth = 1, keyheight = 1)) +
-  ylab("Relative Abundance > 1%") +
-  xlab("Family Name")+
-  labs(fill="Treatment")+
-  ggtitle("Family Composition of Bacterial Communities") 
-
-wrc_plot + coord_flip() 
-
-wrc_family_o<-wrc_family[,c(2:3,40:45)]
-
-write.csv(wrc_family_o, file="family_composition.csv", row.names=TRUE)
-
-ggsave(file="../figures/family_stack.pdf", width=15, height=9, dpi=300)
-
-```
-
-```{r phyloseq Family stacked graphs of taxa composition}
-# melt to long format (for ggploting) 
-# prune out phyla below 1% in each sample
-wrc_family <- treat_merge %>%
-  tax_glom(taxrank = "Family") %>%                     # agglomerate at phylum level
-  transform_sample_counts(function(x) {x/sum(x)} ) %>% # Transform to rel. abundance
-  psmelt() %>%                                         # Melt to long format
-  filter(Abundance > 0.005, Class == "Alphaproteobacteria") %>%                        # Filter out low abundance taxa
-  arrange(Family)                                     # Sort data frame alphabetically by phylum
-
-# wrc_family
-# Set colors for plotting
-family_colors <- c("brown","orange", "blue", "red","yellow","purple")
-  #"#CBD588", "#5F7FC7","#DA5724", "#508578", "#CD9BCD",
-  # "#AD6F3B", "#673770","#D14285", "#652926", "#C84248", 
- #"#8569D5", "#5E738F","#D1A33D", "#8A7C64", "#599861", "#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "green", "red", "yellow","tan", "pink", "purple", "gray", "white", "339900","666699","996699","black"
-#)
-
-# Plot 
-
-#s <- as.factor(wrc_family$Sample)
-#t <- revalue(s, c("bulkM"="bulk unfertilized", "avM"="grass unfertilized", "ecM"="forb unfertilized","bulkMF"="bulk fertilized", "avMF"="grass fertilized", "ecMF"="forb fertilized"))
-#t <- mapvalues(s, from = c("bulkM","avM", "ecM","bulkMF","avMF", "ecMF"), to = c("bulk unfertilized","grass unfertilized", "forb unfertilized","bulk fertilized", "grass fertilized", "forb fertilized"))
-#t<-ordered(t,levels=c("bulk unfertilized","grass unfertilized", "forb unfertilized","bulk fertilized", "grass fertilized", "forb fertilized"))
-
-wrc_plot<- ggplot(wrc_family, aes(x = Family, y = Abundance, fill = as.factor(treatment))) + 
-  #facet_grid(Type ~ .) +
-  geom_bar(stat = "identity", width=0.5) +
-  scale_fill_manual(values = family_colors) +
-  # Remove x axis title
-  theme_bw()  +
-    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
-          axis.title.y=element_text(margin=margin(r=10)), 
-          axis.title.x=element_text(margin=margin(t=10)), panel.border =
-          element_rect(colour = "black",size=1)) + 
-    theme(axis.ticks.length=unit(0.3,"cm")) + 
-  guides(fill = guide_legend(keywidth = 1, keyheight = 1)) +
-  ylab("Relative Abundance > 1%") +
-  xlab("Family Name")+
-  labs(fill="Treatment")+
-  ggtitle("Alphproteobacteria Composition of Bacterial Communities") 
-
-wrc_plot + coord_flip() 
-
-wrc_family_o<-wrc_family[,c(2:3,40:45)]
-
-write.csv(wrc_family_o, file="family_composition.csv", row.names=TRUE)
-
-ggsave(file="../figures/family_stack.pdf", width=15, height=9, dpi=300)
-
-```
-
-
-```{r phyloseq Genus stacked graphs of taxa composition}
-# melt to long format (for ggploting) 
-# prune out phyla below 2% in each sample
-wrc_family <- treat_merge %>%
-  tax_glom(taxrank = "Genus") %>%                     # agglomerate at phylum level
-  transform_sample_counts(function(x) {x/sum(x)} ) %>% # Transform to rel. abundance
-  psmelt() %>%                                         # Melt to long format
-  filter(Abundance > 0.01) %>%                        # Filter out low abundance taxa
-  arrange(Genus)                                     # Sort data frame alphabetically by phylum
-
- wrc_family
-# Set colors for plotting
-family_colors <- c(
-  "#CBD588", "#5F7FC7","#DA5724", "#508578", "#CD9BCD",
-   "#AD6F3B", "#673770","#D14285", "#652926", "#C84248", 
-  "#8569D5", "#5E738F","#D1A33D", "#8A7C64", "#599861", "#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "green", "red", "yellow","tan", "pink", "purple", "gray", "white", "339900","666699","black"
-)
-
-# Plot 
-
-#s <- as.factor(wrc_family$Sample)
-#wrc_family$Sample <- ordered(s,levels=c("bulkM","avM", "ecM","bulkMF","avMF", "ecMF"))
-
-wrc_plot<- ggplot(wrc_family, aes(x = Genus, y = Abundance, fill = as.factor(treatment))) + 
-  #facet_grid(Type ~ .) +
-  geom_bar(stat = "identity", width=0.5) +
-  scale_fill_manual(values = family_colors) +
-  # Remove x axis title
-  theme(axis.title.x = element_blank()) + 
-  guides(fill = guide_legend(keywidth = 1, keyheight = 1)) +
-  ylab("Relative Abundance (Genus > 1%) \n") +
-  ggtitle("Genus Composition of Bacterial Communities By Site") 
-
-wrc_plot + coord_flip() 
-ggsave(file="../figures/genus_stack.1.pdf", width=15, height=9, dpi=300)
-```
-
 
 ```{r ch4co2eq  by season, echo=T, out.width="100%"}
 
@@ -1644,8 +1508,8 @@ ggsave("../figures/SoilNO3.jpeg", plot=last_plot(), device=NULL, path=NULL, scal
 #This is the annual amount of C stored or released from PI or SL plots yearly
 #First get average of all plots by hyrdology and season in mg C m2 hr
 ghg.co2.equiv <- ghg %>% 
-  filter(month=="5-May"| month=="7-Jul" |month == "10-Oct"| month=="12-Dec")%>%
-  mutate(co2cgm2hr=co2cgm2day/24)
+  filter(month=="5-May"| month=="7-Jul" |month == "10-Oct"| month=="12-Dec")
+#This code was previously used 
 #%>%
 #  group_by(hydrology, month) %>%
 #  summarise(mch4mgm2hr=mean(ch4cmgm2hr),mco2mgm2hr=mean(co2cmgm2hr),mn2omgm2hr=mean(n2onmgm2hr)) %>%

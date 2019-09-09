@@ -1,0 +1,9 @@
+OTU	Cluster	IndVal	Prob	ta2	ta3	ta4	ta5	ta6	ta7	OTU
+Otu00037	1	0.730092259350008	0.002	Bacteria	Proteobacteria	Deltaproteobacteria	Syntrophobacterales	Syntrophaceae	Syntrophaceae_unclassified	Otu00037
+Otu00007	2	0.63185708636849	0.002	Bacteria	Verrucomicrobia	Spartobacteria	Spartobacteria_unclassified	Spartobacteria_unclassified	Spartobacteria_unclassified	Otu00007
+Otu00010	2	0.604053664606888	0.006	Bacteria	Bacteria_unclassified	Bacteria_unclassified	Bacteria_unclassified	Bacteria_unclassified	Bacteria_unclassified	Otu00010
+Otu00013	2	0.629996848008375	0.007	Bacteria	Acidobacteria	Acidobacteria_Gp6	Gp6	Gp6_unclassified	Gp6_unclassified	Otu00013
+Otu00014	2	0.576186823519609	0.02	Bacteria	Proteobacteria	Betaproteobacteria	Betaproteobacteria_unclassified	Betaproteobacteria_unclassified	Betaproteobacteria_unclassified	Otu00014
+Otu00025	2	0.680411932907666	0.006	Bacteria	Proteobacteria	Betaproteobacteria	Betaproteobacteria_unclassified	Betaproteobacteria_unclassified	Betaproteobacteria_unclassified	Otu00025
+Otu00031	2	0.596951224217541	0.033	Bacteria	Bacteria_unclassified	Bacteria_unclassified	Bacteria_unclassified	Bacteria_unclassified	Bacteria_unclassified	Otu00031
+Otu00032	2	0.596425080617667	0.019	Bacteria	Proteobacteria	Deltaproteobacteria	Desulfuromonadales	Geobacteraceae	Geobacter	Otu00032
