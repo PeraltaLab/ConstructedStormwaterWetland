@@ -1,12 +1,12 @@
 # Constructed Stormwater Wetland
 
-This repository contains open-source code, data, & text files for 
+This repository contains open-source code, data, & text files.
 
 For information regarding the project, please visit: 
 Bledsoe RB, Bean EZ, Austin S, and Peralta AL. 2020. A microbial perspective on balancing trade-offs in ecosystem 
-functions in a constructed stormwater wetlan. BioRxiv: https://doi.org/10.1101/2020.04.01.020776  
+functions in a constructed stormwater wetlan. [biorxiv pre-print](https://doi.org/10.1101/2020.04.01.020776)  
 
-Raw sequence files can be found at NCBI SRA BioProject ID PRJNA613095.
+Raw sequence files can be found at NCBI SRA [BioProject ID PRJNA613095](https://www.ncbi.nlm.nih.gov/bioproject/?term=PRJNA613095).
 
 ## We address the following questions
 
@@ -27,7 +27,7 @@ Raw sequence files can be found at NCBI SRA BioProject ID PRJNA613095.
 
 ## Contributors
 
-Dr. Regina Bledsoe: Principal Investigator, Student in [Peralta Lab](http://www.peraltalab.com) at East Carolina University
+[Dr. Regina Bledsoe](https://ginabbledsoe.wixsite.com/microbes): Principal Investigator, PhD Student in the [Peralta Lab](http://www.peraltalab.com) at East Carolina University
 
 [Dr. Eban Bean](https://abe.ufl.edu/people/faculty/eban-bean/): Co-Principal Investigator, Assistant Professor, Department of Agricultural and Biological Engineering, University of Florida.
 
@@ -35,4 +35,4 @@ Samuel Austin: Undergraduate Research Assistant, Student in [Peralta Lab](http:/
 
 [Dr. Ariane Peralta](http://www.peraltalab.com): Co-Principal Investigator, Assistant Professor, Department of Biology, East Carolina University. 
 
-[Dr. Mario Muscarella](http://mmuscarella.github.io/): Postdoc in the [O'Dwyer Lab](https://publish.illinois.edu/odwyerlab/) at the University of Illinois at Urbana-Champaign
+[Dr. Mario Muscarella](http://mmuscarella.github.io/): Postdoc at Université du Quebéc à Montréal, soon to be Assistant Professor, University of Alaska, Fairbanks
