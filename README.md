@@ -32,10 +32,10 @@ This work was supported by the East Carolina University (to ALP), the National S
 
 [Dr. Regina Bledsoe](mailto:ginabbledsoe@gmail.com) [(website)](https://ginabbledsoe.wixsite.com/microbes): Principal Investigator, PhD Student in the [Peralta Lab](http://www.peraltalab.com) at East Carolina University
 
-[Dr. Eban Bean](mailto:ezbean@ufl.edu) [(website)](https://abe.ufl.edu/people/faculty/eban-bean/): Co-Principal Investigator, Assistant Professor, Department of Agricultural and Biological Engineering, University of Florida.
+[Dr. Eban Bean](mailto:ezbean@ufl.edu) [(website)](https://abe.ufl.edu/people/faculty/eban-bean/): Co-Principal Investigator, Assistant Professor, Department of Agricultural and Biological Engineering, University of Florida
 
 Samuel Austin: Undergraduate Research Assistant, Student in the [Peralta Lab](http://www.peraltalab.com) at East Carolina University
 
-[Dr. Ariane Peralta](mailto:peraltaa@ecu.edu) [(website)](http://www.peraltalab.com): Co-Principal Investigator, Assistant Professor, Department of Biology, East Carolina University. 
+[Dr. Ariane Peralta](mailto:peraltaa@ecu.edu) [(website)](http://www.peraltalab.com): Co-Principal Investigator, Assistant Professor, Department of Biology, East Carolina University
 
 [Dr. Mario Muscarella](mario.e.muscarella@gmail.com) [(website)](http://mmuscarella.github.io/): Postdoc at Université du Quebéc à Montréal, soon to be Assistant Professor, University of Alaska Fairbanks
