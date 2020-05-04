@@ -4,13 +4,13 @@ This repository contains open-source code, data, & text files.
 
 For information regarding the project, please visit: 
 Bledsoe RB, Bean EZ, Austin S, and Peralta AL. 2020. A microbial perspective on balancing trade-offs in ecosystem 
-functions in a constructed stormwater wetlan. [biorxiv pre-print](https://doi.org/10.1101/2020.04.01.020776)  
+functions in a constructed stormwater wetlan. *[biorxiv pre-print](https://doi.org/10.1101/2020.04.01.020776)*  
 
 Raw sequence files can be found at NCBI SRA [BioProject ID PRJNA613095](https://www.ncbi.nlm.nih.gov/bioproject/?term=PRJNA613095).
 
 ## We address the following questions
 
-* **Aim**: How can wetland design be optimized to enhance ecosystem services and reduce ecosystem disservices?
+* **Aim:** How can wetland design be optimized to enhance ecosystem services and reduce ecosystem disservices?
 
 ### Repo Contents
 
@@ -25,14 +25,17 @@ Raw sequence files can be found at NCBI SRA [BioProject ID PRJNA613095](https://
 
 * **mothur:** Files containing script for bioinformatic analysis of 16S rRNA gene sequences (Illumina MiSeq platform) using mothur pipeline.
 
+## Funding Sources
+This work was supported by the East Carolina University (to ALP), the National Science Foundation (to RBB), and the North Carolina Sea Grant and Water Resources Research Institute Fellowship to RBB.
+
 ## Contributors
 
-[Dr. Regina Bledsoe](https://ginabbledsoe.wixsite.com/microbes): Principal Investigator, PhD Student in the [Peralta Lab](http://www.peraltalab.com) at East Carolina University
+[Dr. Regina Bledsoe](mailto:ginabbledsoe@gmail.com) [(website)](https://ginabbledsoe.wixsite.com/microbes): Principal Investigator, PhD Student in the [Peralta Lab](http://www.peraltalab.com) at East Carolina University
 
-[Dr. Eban Bean](https://abe.ufl.edu/people/faculty/eban-bean/): Co-Principal Investigator, Assistant Professor, Department of Agricultural and Biological Engineering, University of Florida.
+[Dr. Eban Bean](mailto:ezbean@ufl.edu) [(website)](https://abe.ufl.edu/people/faculty/eban-bean/): Co-Principal Investigator, Assistant Professor, Department of Agricultural and Biological Engineering, University of Florida.
 
-Samuel Austin: Undergraduate Research Assistant, Student in [Peralta Lab](http://www.peraltalab.com) at East Carolina University
+Samuel Austin: Undergraduate Research Assistant, Student in the [Peralta Lab](http://www.peraltalab.com) at East Carolina University
 
-[Dr. Ariane Peralta](http://www.peraltalab.com): Co-Principal Investigator, Assistant Professor, Department of Biology, East Carolina University. 
+[Dr. Ariane Peralta](mailto:peraltaa@ecu.edu) [(website)](http://www.peraltalab.com): Co-Principal Investigator, Assistant Professor, Department of Biology, East Carolina University. 
 
-[Dr. Mario Muscarella](http://mmuscarella.github.io/): Postdoc at Université du Quebéc à Montréal, soon to be Assistant Professor, University of Alaska, Fairbanks
+[Dr. Mario Muscarella](mario.e.muscarella@gmail.com) [(website)](http://mmuscarella.github.io/): Postdoc at Université du Quebéc à Montréal, soon to be Assistant Professor, University of Alaska Fairbanks
