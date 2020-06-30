@@ -8,6 +8,8 @@ functions in a constructed stormwater wetland. *[biorxiv pre-print](https://doi.
 
 Raw sequence files can be found at NCBI SRA [BioProject ID PRJNA613095](https://www.ncbi.nlm.nih.gov/bioproject/?term=PRJNA613095).
 
+<a href="https://zenodo.org/badge/latestdoi/116494383"><img src="https://zenodo.org/badge/116494383.svg" alt="DOI"></a>
+
 ## We address the following questions
 
 * **Aim:** How can wetland design be optimized to enhance ecosystem services and reduce ecosystem disservices?
