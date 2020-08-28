@@ -38,6 +38,6 @@ This work was supported by the East Carolina University (to ALP), the National S
 
 Samuel Austin: Undergraduate Research Assistant, Student in the [Peralta Lab](http://www.peraltalab.com) at East Carolina University
 
-[Dr. Ariane Peralta](mailto:peraltaa@ecu.edu) [(website)](http://www.peraltalab.com): Co-Principal Investigator, Assistant Professor, Department of Biology, East Carolina University
+[Dr. Ariane Peralta](mailto:peraltaa@ecu.edu) [(website)](http://www.peraltalab.com): Co-Principal Investigator, Associate Professor, Department of Biology, East Carolina University
 
-[Dr. Mario Muscarella](mario.e.muscarella@gmail.com) [(website)](http://mmuscarella.github.io/): Postdoc at Université du Quebéc à Montréal, soon to be Assistant Professor, University of Alaska Fairbanks
+[Dr. Mario Muscarella](mario.e.muscarella@gmail.com) [(website)](http://mmuscarella.github.io/): Assistant Professor, University of Alaska Fairbanks
