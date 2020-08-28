@@ -4,7 +4,7 @@ This repository contains open-source code, data, & text files.
 
 For information regarding the project, please visit: 
 Bledsoe RB, Bean EZ, Austin S, and Peralta AL. 2020. A microbial perspective on balancing trade-offs in ecosystem 
-functions in a constructed stormwater wetland. *[biorxiv pre-print](https://doi.org/10.1101/2020.04.01.020776)*  
+functions in a constructed stormwater wetland. Ecologial Engineering. 158. *[PDF](https://www.sciencedirect.com/science/article/abs/pii/S0925857420302883?dgcid=author)*  
 
 Raw sequence files can be found at NCBI SRA [BioProject ID PRJNA613095](https://www.ncbi.nlm.nih.gov/bioproject/?term=PRJNA613095).
 
